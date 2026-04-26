@@ -231,6 +231,7 @@ router.post(
 router.patch(
   "/verify-email",
   validate(authSchema.otpSchema),
+  authLimiter("/verify-email"),
   authMiddleware.verifyTempToken("email_verification"),
   authControllers.emailVerificationController
 );
@@ -252,6 +253,7 @@ router.get(
 
 router.post(
   "/verify-email/resend-otp",
+  authLimiter("/verify-email/resend-otp"),
   authMiddleware.verifyTempToken("email_verification"),
   authControllers.resendOtpController("email_verification")
 )
@@ -271,15 +273,52 @@ router.get(
 router.post(
   "/verify-mfa",
   validate(authSchema.otpSchema),
+  authLimiter("/verify-mfa"),
   authMiddleware.verifyTempToken("mfa"),
   authControllers.verifyMfaController
 );
 
 router.post(
   "/mfa/resend-otp",
+  authLimiter("/mfa/resend-otp"),
   authMiddleware.verifyTempToken("mfa"),
   authControllers.resendOtpController("mfa")
 )
 
+router.post("/clear-temp-token", authControllers.clearTempTokenController);
+
+// Reset password routes
+router.post(
+  "/reset-password/request",
+  validate(authSchema.emailSchema),
+  authLimiter("/reset-password/request"),
+  authControllers.requestResetPasswordController
+)
+
+router.post(
+  "/reset-password/verify",
+  validate(authSchema.verifyResetPasswordOTPSchema),
+  authLimiter("/reset-password/verify"),
+  authControllers.verifyResetPasswordOTPController
+)
+
+router.patch(
+  "/reset-password",
+  authMiddleware.verifyTempToken("password_reset"),
+  validate(authSchema.resetPasswordSchema),
+  authLimiter("/reset-password"),
+  authControllers.resetPasswordController
+)
+
+router.patch(
+  "/reset-password/resend-otp",
+  authLimiter("/reset-password/resend-otp"),
+  authControllers.resendOtpController("password_reset")
+)
+
+router.get(
+  "/reset-password/session",
+  authControllers.verifyTempTokenController("password_reset")
+)
 
 export default router;

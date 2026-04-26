@@ -1,49 +1,65 @@
 import { rateLimit } from 'express-rate-limit';
 import { RedisStore } from 'rate-limit-redis';
 import redis from '../configs/redis.ts';
-import type { Request } from 'express';
+import type { Request, Response } from 'express';
 
 /**
  * Factory function to create tailored rate limiters using Redis.
  * This keeps the limits stateless and consistent across server restarts.
  */
-const createLimiter = (windowMs: number, max: number, message: string, keyPrefix: string) => {
+const createLimiter = (windowMs: number, max: number, defaultMessage: string, keyPrefix: string) => {
   return rateLimit({
     store: new RedisStore({
-      // @ts-ignore - Handles type mismatch between ioredis and rate-limit-redis
+      // @ts-ignore
       sendCommand: (...args: string[]) => redis.call(...args) as Promise<any>,
-      prefix: `rl:${keyPrefix}:`, // Segregate limits in Redis by route
+      prefix: `rl:${keyPrefix}:`,
     }),
     windowMs,
     max,
-    standardHeaders: true, // Returns RateLimit-Limit, RateLimit-Remaining, and RateLimit-Reset headers
-    legacyHeaders: false,   // Disables X-RateLimit-* headers
+    standardHeaders: true,
+    legacyHeaders: false,
 
-    // --- FIX FOR ERR_ERL_KEY_GEN_IPV6 ---
     validate: {
       default: true,
       keyGeneratorIpFallback: false,
     },
 
-    message: {
-      success: false,
-      status: 429,
-      error: "Too Many Requests",
-      message
+    // --- DYNAMIC MESSAGE LOGIC ---
+    handler: (req: Request, res: Response) => {
+      // req.rateLimit.resetTime is a Date object provided by the middleware
+      const resetTime = (req as any).rateLimit.resetTime;
+      const now = new Date();
+      
+      // Calculate difference in minutes, rounding up
+      const diffMs = resetTime.getTime() - now.getTime();
+      const diffMins = Math.ceil(diffMs / (1000 * 60));
+      const diffSecs = Math.ceil(diffMs / 1000);
+
+      let dynamicMessage = defaultMessage;
+
+      // Replace "30 minutes" or similar placeholders with the actual remaining time
+      if (diffMins > 1) {
+        dynamicMessage = `Too many requests. Please try again in ${diffMins} minutes.`;
+      } else {
+        dynamicMessage = `Too many requests. Please try again in ${diffSecs} seconds.`;
+      }
+
+      res.status(429).json({
+        success: false,
+        status: 429,
+        error: "Too Many Requests",
+        message: dynamicMessage,
+        retryAfterMins: diffMins,
+        retryAfterSecs: diffSecs // Useful for the frontend ResendOTP component!
+      });
     },
 
-    /**
-     * Identifies users by IP by default.
-     * Couples IP + Email for auth routes to prevent targeted brute-force.
-     */
     keyGenerator: (req: Request): string => {
       const ip = req.ip || 'unknown-ip';
       const email = req.body?.email;
-
       return email ? `${ip}_${email}` : ip;
     },
 
-    // Prevent the health check route from consuming the rate limit quota
     skip: (req: Request) => req.path === '/health',
   });
 };

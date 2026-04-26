@@ -21,11 +21,11 @@ interface SendMailOptions {
 const sendMail = async ({ from, to, subject, html, props }: SendMailOptions) => {
   try {
     const data = await resend.emails.send({
-      from,
-      to,
+      from: "onboarding@resend.dev",
+      to: "busayojosiah@gmail.com",
       subject,
       html,
-      ...props,
+      // ...props,
     });
 
     return { success: true, data };

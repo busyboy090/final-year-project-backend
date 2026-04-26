@@ -5,6 +5,7 @@ import { generate2FASecret, generateQRCode } from "./2fa.service.ts";
 import { sendEmailVerification } from "../mail/emailVerification.service.ts";
 import { OTPService } from "./otp.service.ts";
 import { generateTempToken } from "../../utils/jwt.ts";
+import * as format from "../../utils/format.ts";
 
 type PublicUser = {
   id: number;
@@ -52,8 +53,8 @@ export const registerUser = async (payload: RegisterUserInput & { role?: string 
     }
 
     const createdUser = await db.User.create({
-      first_name: payload.first_name,
-      last_name: payload.last_name,
+      first_name: format.capitalizeInitial(payload.first_name),
+      last_name: format.capitalizeInitial(payload.last_name),
       email: payload.email,
       password: hashedPassword,
       role: payload.role || "user",
@@ -63,7 +64,7 @@ export const registerUser = async (payload: RegisterUserInput & { role?: string 
       is_active: true
     }, { transaction });
 
-    const otp = await OTPService.generateOTP(createdUser.email)
+    const { otp } = await OTPService.generateOTP(createdUser.email, "email_verification")
 
     // Use your dedicated mail service with the HTML template
     const emailResult = await sendEmailVerification({
@@ -74,7 +75,7 @@ export const registerUser = async (payload: RegisterUserInput & { role?: string 
 
     if (emailResult.error) {
       await transaction.rollback(); // Rollback user creation if email fails
-      await OTPService.deleteOTP(createdUser.email)
+      await OTPService.deleteOTP(createdUser.email, "email-verification")
       return { ok: false, reason: "VERIFICATION_EMAIL_SEND_FAILED" };
     }
 

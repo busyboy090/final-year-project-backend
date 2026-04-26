@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import { verifyTempToken } from "../../utils/jwt.ts";
 import db from "../../models/index.ts";
+import { OTPService } from "../../services/auth/otp.service.ts";
 
 export const verifyTempTokenController = (type: string) => {
     return async (req: Request, res: Response) => {
@@ -23,7 +24,8 @@ export const verifyTempTokenController = (type: string) => {
                 type: string 
             };
 
-            // --- CHECK THE TYPE ---
+            // 3. --- CHECK THE TYPE ---
+            // Ensure the user is trying to verify for the correct reason (e.g., 'mfa' vs 'email_verification')
             if (decoded.type.toLowerCase() !== type.toLowerCase()) {
                 return res.status(403).json({
                     success: false,
@@ -32,7 +34,7 @@ export const verifyTempTokenController = (type: string) => {
                 });
             }
 
-            // 3. Find user 
+            // 4. Find user 
             const user = await db.User.findByPk(Number(decoded.userId));
 
             if (!user) {
@@ -42,12 +44,17 @@ export const verifyTempTokenController = (type: string) => {
                 });
             }
 
-            // 4. Return success with user data 
+            // 5. --- CHECK COOLDOWN TIME ---
+            // We ask Redis how much time is left for this user's specific OTP type
+            const cooldownRemaining = await OTPService.getCooldown(user.email, type);
+
+            // 6. Return success with user data and cooldown
             return res.status(200).json({
                 success: true,
                 message: "Session is valid",
                 email: user.email,
-                first_name: user.first_name
+                first_name: user.first_name,
+                cooldownRemaining: cooldownRemaining // This sends 0 if no cooldown is active
             });
 
         } catch (error: any) {

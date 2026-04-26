@@ -18,6 +18,7 @@ export const registerController = async (req: Request, res: Response) => {
         case "VERIFICATION_EMAIL_SEND_FAILED":
           return res.status(500).json({
             success: false,
+            requireEmailVerification: true,
             message: "Account created, but verification email could not be sent",
           });
 
@@ -44,6 +45,7 @@ export const registerController = async (req: Request, res: Response) => {
       success: true,
       message: "User registered successfully. Please verify your email before logging in.",
       user: result.user,
+      requireEmailVerification: true,
       verificationEmailSent: result.verificationEmailSent
     });
 

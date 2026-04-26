@@ -45,7 +45,7 @@ interface ExtendedLoginInput {
   password: string;
 }
 
-export const loginUser = async (payload: ExtendedLoginInput): Promise<LoginUserResult> => {
+export const loginUser = async (payload: ExtendedLoginInput): Promise<LoginUserResult & { cooldownRemaining?: number }> => {
   try {
     const user = await db.User.scope("withSecrets").findOne({
       where: { email: payload.email },
@@ -60,30 +60,31 @@ export const loginUser = async (payload: ExtendedLoginInput): Promise<LoginUserR
       return { ok: false, reason: "INVALID_CREDENTIALS" };
     }
 
-    // --- NEW LOGIC: Handle Unverified Email ---
+    // --- Handle Unverified Email ---
     if (!user.email_verified) {
-      const otp = await OTPService.generateOTP(user.email)
+      const { otp, cooldownRemaining } = await OTPService.generateOTP(user.email, "email_verification");
 
-      // send verification mail
+      // If cooldown is active, let the frontend know how long to wait
+      if (cooldownRemaining && !otp) {
+        return { ok: false, reason: "EMAIL_NOT_VERIFIED", cooldownRemaining, tempToken: generateTempToken({ userId: String(user.id), type: "email_verification" }, "15m") };
+      }
+
       const { error } = await mailService.sendEmailVerification({
         to: user.email,
         name: user.first_name,
-        otp
+        otp: otp!
       });
 
       if (error) {
-        await OTPService.deleteOTP(user.email)
+        await OTPService.deleteOTP(user.email, "email_verification");
         return { ok: false, reason: "VERIFICATION_EMAIL_SEND_FAILED" };
       }
 
       return {
         ok: false,
         reason: "EMAIL_NOT_VERIFIED",
-        tempToken: generateTempToken({
-          userId: String(user.id),
-          email: user.email,
-          type: "email_verification"
-        }, "15m")
+        cooldownRemaining,
+        tempToken: generateTempToken({ userId: String(user.id), type: "email_verification" }, "15m")
       };
     }
 
@@ -91,36 +92,34 @@ export const loginUser = async (payload: ExtendedLoginInput): Promise<LoginUserR
       return { ok: false, reason: "INACTIVE_ACCOUNT" };
     }
 
-    // 2FA Logic ...
+    // --- Handle MFA Logic ---
     if (user.two_factor_enabled) {
-      // Generate Otp
-      const otp = await OTPService.generateOTP(user.email);
+      const { otp, cooldownRemaining } = await OTPService.generateOTP(user.email, "mfa");
 
-      // send verification mail
+      if (cooldownRemaining && !otp) {
+        return { ok: false, reason: "MFA_REQUIRED", cooldownRemaining, tempToken: generateTempToken({ userId: String(user.id), type: "mfa" }, "15m") };
+      }
+
       const { error } = await mailService.sendMfaOTP({
         to: user.email,
         name: user.first_name,
-        otp
+        otp: otp!
       });
 
       if (error) {
-        await OTPService.deleteOTP(user.email)
+        await OTPService.deleteOTP(user.email, "mfa");
         return { ok: false, reason: "MFA_OTP_EMAIL_SEND_FAILED" };
       }
 
       return {
         ok: false,
         reason: "MFA_REQUIRED",
-        tempToken: generateTempToken({
-          userId: String(user.id),
-          type: "mfa"
-        }, "15m")
+        tempToken: generateTempToken({ userId: String(user.id), type: "mfa" }, "15m")
       };
     }
 
-    // Prepare Success Response ...
+    // --- Success Response (No MFA) ---
     const tokenPayload = { userId: String(user.id), email: user.email, role: user.role };
-
     return {
       ok: true,
       user: {
@@ -136,7 +135,6 @@ export const loginUser = async (payload: ExtendedLoginInput): Promise<LoginUserR
       accessToken: generateAccessToken(tokenPayload),
       refreshToken: generateRefreshToken(tokenPayload),
     };
-
   } catch (error) {
     console.error("LOGIN_SERVICE_ERROR:", error);
     throw error;

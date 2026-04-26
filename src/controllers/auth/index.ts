@@ -7,3 +7,5 @@ export * from "./verifyTempToken.controller.ts";
 export * from "./resendOtp.controller.ts";
 export * from "./isAuthenticated.controller.ts";
 export * from "./verifyMfa.controller.ts";
+export * from "./clearTempToken.controller.ts";
+export * from "./resetPassword.controller.ts"

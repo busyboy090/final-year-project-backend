@@ -17,7 +17,7 @@ export const emailVerificationController = async (req: Request, res: Response) =
     }
 
     // Verify OTP via Redis Service
-    const isValid = await OTPService.verifyOTP(user.email, otp);
+    const isValid = await OTPService.verifyOTP(user.email, "email_verification", otp);
 
     if (!isValid) {
       return res.status(400).json({

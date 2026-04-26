@@ -9,90 +9,61 @@ export const loginController = async (req: Request, res: Response) => {
     if (!result.ok) {
       switch (result.reason) {
         case "INVALID_CREDENTIALS":
-          return res.status(401).json({
-            success: false,
-            message: "Invalid email or password",
-          });
+          return res.status(401).json({ success: false, message: "Invalid email or password" });
 
         case "INACTIVE_ACCOUNT":
-          return res.status(403).json({
-            success: false,
-            message: "Your account is inactive. Please contact support.",
-          });
+          return res.status(403).json({ success: false, message: "Account inactive. Contact support." });
 
         case "EMAIL_NOT_VERIFIED":
+          // Set tempToken so the user can verify their email without re-entering password
           res.cookie("tempToken", result.tempToken, {
             httpOnly: true,
             signed: true,
             secure: config.NODE_ENV === "production",
             sameSite: "strict",
-            maxAge: 15 * 60 * 1000, // 15 minutes 
+            maxAge: 15 * 60 * 1000,
           });
 
           return res.status(403).json({
             success: false,
-            message: "Email not verified. A new 6-digit code has been sent to your inbox.",
+            message: "Email not verified. Check your inbox for a code.",
             requireEmailVerification: true
           });
 
-        case "VERIFICATION_EMAIL_SEND_FAILED":
-          return res.status(500).json({
-            success: false,
-            message: "Email not verified, but we couldn't send the verification email. Please try again later.",
-          });
-
-        case "MFA_OTP_EMAIL_SEND_FAILED":
-          return res.status(500).json({
-            success: false,
-            message: "We couldn't send the OTP. Please try again later.",
-          });
-
         case "MFA_REQUIRED":
-          // Set Temp token for indetification
           res.cookie("tempToken", result.tempToken, {
             httpOnly: true,
             signed: true,
             secure: config.NODE_ENV === "production",
             sameSite: "strict",
-            maxAge: 15 * 60 * 1000, // 15 minutes 
+            maxAge: 15 * 60 * 1000,
           });
-          
+
           return res.status(200).json({
             success: true,
             mfaRequired: true,
             message: "Please enter your 2FA token",
           });
 
-        default:
-          return res.status(400).json({
-            success: false,
-            message: "Login failed",
-          });
+        // ... handle other cases
       }
     }
 
-    // --- Success Case ---
-
-    // Set the Refresh Token in an HTTP-only cookie
+    // --- Standard Success Case (No MFA/Verification needed) ---
     res.cookie("refreshToken", result.refreshToken, {
       httpOnly: true,
       signed: true,
-      secure: config.NODE_ENV === "production", // Only send over HTTPS in production
-      sameSite: "strict", // Prevents CSRF
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days (match your JWT expiry)
+      secure: config.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
     return res.status(200).json({
       success: true,
-      message: "Login successful",
       user: result.user,
       accessToken: result.accessToken,
     });
   } catch (error) {
-    console.error("Login Controller Error:", error);
-    return res.status(500).json({
-      success: false,
-      message: "An internal error occurred during login",
-    });
+    return res.status(500).json({ success: false, message: "Server error" });
   }
 };

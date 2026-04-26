@@ -19,7 +19,7 @@ export const verifyMfaController = async (req: Request, res: Response) => {
         }
 
         // Verify OTP via Redis Service
-        const isValid = await OTPService.verifyOTP(user.email, otp);
+        const isValid = await OTPService.verifyOTP(user.email, "mfa", otp);
 
         if (!isValid) {
             return res.status(400).json({
