@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { margin: 0; padding: 0; width: 100% !important; background-color: #f4f7fa; }
+        .container { max-width: 600px; margin: 0 auto; padding: 40px 20px; background-color: #ffffff; border-radius: 8px; margin-top: 20px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+        .otp-code { 
+            font-size: 32px; 
+            font-weight: bold; 
+            letter-spacing: 8px; 
+            color: #10b981; /* Emerald green for security/access */
+            background-color: #ecfdf5; 
+            padding: 20px; 
+            border-radius: 12px; 
+            display: inline-block; 
+            margin: 20px 0;
+            border: 1px dashed #a7f3d0;
+        }
+        .security-footer {
+            background-color: #f8fafc;
+            padding: 15px;
+            border-radius: 6px;
+            font-size: 13px;
+            color: #64748b;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #f4f7fa;">
+    <div class="container">
+        <h2 style="color: #1e293b; margin-bottom: 20px; text-align: center;">Two-Factor Authentication</h2>
+        <p style="color: #475569; font-size: 16px;">Hello {{firstName}},</p>
+        <p style="color: #475569; font-size: 16px;">We received a request to sign in to your account. Use the code below to complete your login. <strong>This code expires in 10 minutes.</strong></p>
+        
+        <div style="text-align: center;">
+            <div class="otp-code">
+                {{otpCode}}
+            </div>
+        </div>
+
+        <p style="color: #64748b; font-size: 14px; text-align: center; margin-bottom: 25px;">
+            Enter this code on the login screen to verify your identity.
+        </p>
+
+        <div class="security-footer">
+            <strong>Security Note:</strong> This request was made from a new device or location. If this wasn't you, we recommend changing your password immediately to secure your account.
+        </div>
+
+        <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 30px 0;">
+        <p style="color: #94a3b8; font-size: 12px; text-align: center;">
+            This is an automated message, please do not reply to this email.
+        </p>
+        <p style="color: #cbd5e1; font-size: 11px; text-align: center;">
+            &copy; {{year}} {{platformName}}. All rights reserved.
+        </p>
+    </div>
+</body>
+</html>

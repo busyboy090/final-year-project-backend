@@ -1,0 +1,39 @@
+{
+  "compilerOptions": {
+    /* Target & Module System */
+    "target": "ES2022",                // Modern JavaScript features
+    "module": "ESNext",                // Standard for ES Modules
+    "moduleResolution": "Bundler",     // Optimal for modern Node.js/TS 5.x+
+    "lib": ["ESNext"],                 // Include latest JS library features
+
+    /* File Layout */
+    "rootDir": "./src",                // Source code location
+    "outDir": "./dist",                // Compiled code location
+    "removeComments": true,            // Smaller output files
+    "noEmitOnError": true,             // Don't build if there are TS errors
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+
+    /* Interop & Compatibility */
+    "esModuleInterop": true,           // Critical for importing CommonJS packages
+    "allowSyntheticDefaultImports": true, // Better support for non-ESM libs
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,         // Allows importing .json files
+    "skipLibCheck": true,              // Speeds up build by skipping type checks of libs
+
+    /* Strictness & Type Checking */
+    "strict": true,                    // Enable all strict type-checking options
+    "noImplicitAny": true,             // Error on expressions with implied 'any' type
+    "strictNullChecks": true,          // Prevents "null is not an object" errors
+    "noUnusedLocals": true,            // Clean code: error on unused variables
+    "noUnusedParameters": true,        // Clean code: error on unused function params
+    "noUncheckedIndexedAccess": true,  // Safety when accessing arrays/objects by index
+
+    /* Other Features */
+    "sourceMap": true,                 // Useful for debugging compiled code
+    "declaration": true,               // Generates .d.ts files for your code
+    "moduleDetection": "force"         // Treats every file as a module
+  },
+  "include": ["src/**/*"],             // Only compile what's inside src
+  "exclude": ["node_modules", "dist"]  // Ignore these folders
+}
