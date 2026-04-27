@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import sendMail from "../../configs/resend.ts";
 import config from "../../configs/env.ts";
+import { fileURLToPath } from 'url';
 
 type Payload = {
     to: string;
@@ -9,9 +10,12 @@ type Payload = {
     otp: string;
 }
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 export const sendEmailVerification = async (payload: Payload) => {
     try {
-        const templatePath = path.join("src","mailtemplates","emailVerification.html");
+        const templatePath = path.join(__dirname, 'src', 'mailtemplates', 'emailVerification.html');
         
         // Read the file
         let htmlContent = fs.readFileSync(templatePath, 'utf8');
