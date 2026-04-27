@@ -18,14 +18,14 @@ interface SendMailOptions {
  * Utility to send emails via Resend.
  * Supports both single and multiple recipients.
  */
-const sendMail = async ({ subject, html }: SendMailOptions) => {
+const sendMail = async ({ from, to, subject, html, props }: SendMailOptions) => {
   try {
     const data = await resend.emails.send({
-      from: "onboarding@resend.dev",
-      to: "busayojosiah@gmail.com",
+      from,
+      to,
       subject,
       html,
-      // ...props,
+      ...props
     });
 
     return { success: true, data };

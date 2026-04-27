@@ -29,7 +29,7 @@ export const sendPasswordResetEmail = async (payload: Payload) => {
 
         // Send the email using your Resend config
         const { error } = await sendMail({
-            from: "onboarding@resend.dev",
+            from: `noreply@${config.DOMAIN}`,
             to: payload.to,
             subject: `${payload.otp} is your ${config.NAME} reset password verification code`,
             html: htmlContent

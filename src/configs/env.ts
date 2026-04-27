@@ -22,6 +22,7 @@ interface EnvConfig {
   UPSTASH_REDIS_URL: string;
   REDIS_MAX_RETRIES: number;
   RESEND_API_KEY: string;
+  DOMAIN: string;
 }
 
 const env: EnvConfig = {
@@ -44,6 +45,7 @@ const env: EnvConfig = {
   UPSTASH_REDIS_URL: process.env.UPSTASH_REDIS_URL || "",
   REDIS_MAX_RETRIES: Number(process.env.REDIS_MAX_RETRIES) || 1,
   RESEND_API_KEY: process.env.RESEND_API_KEY || "",
+  DOMAIN: process.env.DOMAIN || ""
 };
 
 // Logic check: Ensure critical DB and Secret variables exist in production

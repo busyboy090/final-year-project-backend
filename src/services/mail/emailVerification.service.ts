@@ -29,7 +29,7 @@ export const sendEmailVerification = async (payload: Payload) => {
 
         // Send the email using your Resend config
         const { error } = await sendMail({
-            from: "onboarding@resend.dev",
+            from: `noreply@${config.DOMAIN}`,
             to: payload.to,
             subject: 'Verify your email address',
             html: htmlContent
