@@ -25,6 +25,7 @@ const finalWhitelist: string[] = config.NODE_ENV === "development" ? [...baseOri
 
 // Specific endpoints allowed to bypass strict origin checks
 const allowedSelectedEndpoints: string[] = [
+    "/health",
     "/api/v1/oauth/google",
     "/api/v1/oauth/github",
     "/api/v1/oauth/google/callback",
