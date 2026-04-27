@@ -19,7 +19,7 @@ export const registerController = async (req: Request, res: Response) => {
           return res.status(500).json({
             success: false,
             requireEmailVerification: true,
-            message: "Account created, but verification email could not be sent",
+            message: "Something went wrong.",
           });
 
         default:
