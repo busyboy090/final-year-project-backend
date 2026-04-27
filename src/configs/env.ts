@@ -9,6 +9,7 @@ interface EnvConfig {
   DB_NAME: string;
   DB_USERNAME: string;
   DB_PASSWORD: string;
+  DB_PORT: number;
   DB_HOST: string;
   DB_DIALECT: string;
   DB_URL: string;
@@ -31,6 +32,7 @@ const env: EnvConfig = {
   DB_USERNAME: process.env.DB_USERNAME || "",
   DB_PASSWORD: process.env.DB_PASSWORD || "",
   DB_HOST: process.env.DB_HOST || "localhost",
+  DB_PORT: Number(process.env.DB_PORT) || 5432,
   DB_DIALECT: process.env.DB_DIALECT || "postgres",
   DB_URL: process.env.DB_URL || "",
   ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS || "*",
