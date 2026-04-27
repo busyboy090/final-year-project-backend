@@ -16,7 +16,7 @@ const __dirname = path.dirname(__filename);
 
 export const sendMfaOTP = async (payload: Payload) => {
     try {
-        const templatePath = path.join(__dirname, 'mailtemplates', 'mfaOTP.html');
+        const templatePath = path.join(__dirname, '..', '..', 'mailtemplates', 'mfaOTP.html');
         
         // Read the file
         let htmlContent = fs.readFileSync(templatePath, 'utf8');

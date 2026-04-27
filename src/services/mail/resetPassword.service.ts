@@ -15,7 +15,7 @@ type Payload = {
 
 export const sendPasswordResetEmail = async (payload: Payload) => {
     try {
-        const templatePath = path.join(__dirname, 'mailtemplates', 'resetPasswordOTP.html');
+        const templatePath = path.join(__dirname, '..', '..', 'mailtemplates', 'resetPasswordOTP.html');
         
         // Read the file
         let htmlContent = fs.readFileSync(templatePath, 'utf8');

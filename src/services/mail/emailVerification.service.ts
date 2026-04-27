@@ -15,7 +15,7 @@ const __dirname = path.dirname(__filename);
 
 export const sendEmailVerification = async (payload: Payload) => {
     try {
-        const templatePath = path.join(__dirname, 'mailtemplates', 'emailVerification.html');
+        const templatePath = path.join(__dirname, '..', '..', 'mailtemplates', 'emailVerification.html');
         
         // Read the file
         let htmlContent = fs.readFileSync(templatePath, 'utf8');
