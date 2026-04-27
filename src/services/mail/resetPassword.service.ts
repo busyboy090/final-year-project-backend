@@ -2,7 +2,6 @@ import fs from 'fs';
 import path from 'path';
 import sendMail from "../../configs/resend.ts";
 import config from "../../configs/env.ts";
-import { success } from 'zod';
 
 type Payload = {
     to: string;

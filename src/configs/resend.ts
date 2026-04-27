@@ -18,7 +18,7 @@ interface SendMailOptions {
  * Utility to send emails via Resend.
  * Supports both single and multiple recipients.
  */
-const sendMail = async ({ from, to, subject, html, props }: SendMailOptions) => {
+const sendMail = async ({ subject, html }: SendMailOptions) => {
   try {
     const data = await resend.emails.send({
       from: "onboarding@resend.dev",
