@@ -7,14 +7,17 @@ export default {
     "password": env.DB_PASSWORD || null,
     "database": env.DB_NAME || "database_dev",
     "host": env.DB_HOST || "127.0.0.1",
-    "dialect": (process.env.DB_DIALECT as any) || "postgres",
+    "dialect": (env.DB_DIALECT as any) || "postgres",
   },
   "test": {
-    "username": env.DB_USERNAME || "postgres",
-    "password": env.DB_PASSWORD || null,
-    "database": env.DB_NAME || "database_test",
-    "host": env.DB_HOST || "127.0.0.1",
+    "url": env.DB_URL,
     "dialect": (env.DB_DIALECT as any) || "postgres",
+    "dialectOptions": {
+      "ssl": {
+        "require": true,
+        "rejectUnauthorized": false,
+      },
+    },
   },
   "production": {
     "username": env.DB_USERNAME,

@@ -11,6 +11,7 @@ interface EnvConfig {
   DB_PASSWORD: string;
   DB_HOST: string;
   DB_DIALECT: string;
+  DB_URL: string;
   ALLOWED_ORIGINS: string;
   REFRESH_TOKEN_SECRET: string;
   ACCESS_TOKEN_SECRET: string;
@@ -31,6 +32,7 @@ const env: EnvConfig = {
   DB_PASSWORD: process.env.DB_PASSWORD || "",
   DB_HOST: process.env.DB_HOST || "localhost",
   DB_DIALECT: process.env.DB_DIALECT || "postgres",
+  DB_URL: process.env.DB_URL || "",
   ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS || "*",
   REFRESH_TOKEN_SECRET: process.env.REFRESH_TOKEN_SECRET || "",
   ACCESS_TOKEN_SECRET: process.env.ACCESS_TOKEN_SECRET || "",
