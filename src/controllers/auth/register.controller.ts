@@ -35,7 +35,7 @@ export const registerController = async (req: Request, res: Response) => {
         httpOnly: true,
         signed: true,
         secure: config.NODE_ENV === "production",
-        sameSite: "strict",
+        sameSite: config.NODE_ENV === "production" ? "none" : "strict",
         maxAge: 15 * 60 * 1000, // 15 minutes 
       });
     }
