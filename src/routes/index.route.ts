@@ -3,7 +3,10 @@ import { Router } from "express";
 import type { Request, Response } from "express";
 
 // Local Modules
-import AuthRoutes from "./auth.ts";
+import AuthRoutes from "./auth.route.ts";
+import UserRoutes from "./user.route.ts";
+import LevelRoutes from "./level.route.ts";
+import DepartmentRoutes from "./department.route.ts"
 
 const router: Router  = Router();
 
@@ -36,5 +39,14 @@ router.get('/csrf-token', (req: Request, res: Response) => {
 
 // Auth Routes
 router.use('/auth', AuthRoutes)
+
+// User Routes
+router.use("/user", UserRoutes)
+
+// Levels Routes
+router.use("/levels", LevelRoutes)
+
+// Departments Routes
+router.use("/departments", DepartmentRoutes)
 
 export default router;

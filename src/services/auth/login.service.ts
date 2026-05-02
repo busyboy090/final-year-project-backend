@@ -2,124 +2,78 @@ import { OTPService } from './otp.service.ts';
 import bcrypt from "bcrypt";
 import db from "../../models/index.ts";
 import { generateAccessToken, generateRefreshToken, generateTempToken } from "../../utils/jwt.ts";
-import * as  mailService from "../mail/index.ts";
+import * as mailService from "../mail/index.ts";
+import type { PublicUser, UserRole } from '../../types/user.d.ts';
+import { ProfileService } from '../user/profile.service.ts';
 
-/**
- * Public user type for safe API responses
- */
-type PublicUser = {
-  id: number;
-  first_name: string;
-  last_name: string;
-  email: string;
-  role: "administrator" | "organiser" | "user";
-  is_active: boolean;
-  created_at: Date;
-  updated_at: Date;
-};
-
-/**
- * Result type handling standard and MFA states
- */
 type LoginUserResult = {
   ok: boolean;
   user?: PublicUser;
   tempToken?: string;
   accessToken?: string;
   refreshToken?: string;
-  reason?:
-  | "INVALID_CREDENTIALS"
-  | "EMAIL_NOT_VERIFIED"
-  | "INACTIVE_ACCOUNT"
-  | "MFA_REQUIRED"
-  | "INVALID_2FA_TOKEN"
-  | "VERIFICATION_EMAIL_SEND_FAILED"
-  | "MFA_OTP_EMAIL_SEND_FAILED";
+  needsProfileCompletion?: boolean;
+  reason?: "INVALID_CREDENTIALS" | "EMAIL_NOT_VERIFIED" | "INACTIVE_ACCOUNT" | "MFA_REQUIRED" | "VERIFICATION_EMAIL_SEND_FAILED" | "MFA_OTP_EMAIL_SEND_FAILED";
+  cooldownRemaining?: number;
 };
 
-/**
- * Extended input to allow the optional 2FA token from the frontend
- */
-interface ExtendedLoginInput {
-  email: string;
-  password: string;
-}
-
-export const loginUser = async (payload: ExtendedLoginInput): Promise<LoginUserResult & { cooldownRemaining?: number }> => {
+export const loginUser = async (payload: { email: string; password: string }): Promise<LoginUserResult> => {
   try {
+    // 1. Fetch User with Many-to-Many Roles and Permissions
     const user = await db.User.scope("withSecrets").findOne({
       where: { email: payload.email },
+      include: [{
+        model: db.Role,
+        as: 'roles',
+        include: [{ model: db.Permission, as: 'permissions', attributes: ['name'] }]
+      }]
     });
 
-    if (!user || !user.password) {
-      return { ok: false, reason: "INVALID_CREDENTIALS" };
-    }
+    if (!user || !user.password) return { ok: false, reason: "INVALID_CREDENTIALS" };
+    if (!(await bcrypt.compare(payload.password, user.password))) return { ok: false, reason: "INVALID_CREDENTIALS" };
 
-    const passwordMatches = await bcrypt.compare(payload.password, user.password);
-    if (!passwordMatches) {
-      return { ok: false, reason: "INVALID_CREDENTIALS" };
-    }
-
-    // --- Handle Unverified Email ---
+    // 2. Verification Checks (Email & MFA)
     if (!user.email_verified) {
-      const { otp, cooldownRemaining } = await OTPService.generateOTP(user.email, "email_verification");
+        const { otp, cooldownRemaining } = await OTPService.generateOTP(user.email, "email_verification");
+        
+        if (cooldownRemaining && !otp) {
+          return { 
+            ok: false, 
+            reason: "EMAIL_NOT_VERIFIED", 
+            cooldownRemaining, 
+            tempToken: generateTempToken({ userId: String(user.id), type: "email_verification" }, "15m") 
+          };
+        }
+  
+        const { error } = await mailService.sendEmailVerification({
+          to: user.email,
+          name: user.first_name,
+          otp: otp!
+        });
+  
+        if (error) {
+          await OTPService.deleteOTP(user.email, "email_verification");
+          return { ok: false, reason: "VERIFICATION_EMAIL_SEND_FAILED" };
+        }
 
-      // If cooldown is active, let the frontend know how long to wait
-      if (cooldownRemaining && !otp) {
         return { ok: false, reason: "EMAIL_NOT_VERIFIED", cooldownRemaining, tempToken: generateTempToken({ userId: String(user.id), type: "email_verification" }, "15m") };
-      }
-
-      const { error } = await mailService.sendEmailVerification({
-        to: user.email,
-        name: user.first_name,
-        otp: otp!
-      });
-
-      if (error) {
-        await OTPService.deleteOTP(user.email, "email_verification");
-        return { ok: false, reason: "VERIFICATION_EMAIL_SEND_FAILED" };
-      }
-
-      return {
-        ok: false,
-        reason: "EMAIL_NOT_VERIFIED",
-        cooldownRemaining,
-        tempToken: generateTempToken({ userId: String(user.id), type: "email_verification" }, "15m")
-      };
     }
+    if (!user.is_active) return { ok: false, reason: "INACTIVE_ACCOUNT" };
 
-    if (!user.is_active) {
-      return { ok: false, reason: "INACTIVE_ACCOUNT" };
-    }
+    // 3. Flatten Multi-Role & Permission Data
+    const roleCodes = user.roles?.map((r: any) => r.code) as UserRole[] || [];
+    const permissions = [...new Set(user.roles?.flatMap((r: any) => r.permissions?.map((p: any) => p.name)) || [])] as string[];
 
-    // --- Handle MFA Logic ---
-    if (user.two_factor_enabled) {
-      const { otp, cooldownRemaining } = await OTPService.generateOTP(user.email, "mfa");
+    // 4. Verify ALL required Profiles
+    const allProfilesExist = await ProfileService.checkAllUserProfiles(user.id, roleCodes);
+    
+    const tokenPayload = { 
+      userId: String(user.id), 
+      email: user.email, 
+      roles: roleCodes, 
+      permissions: permissions 
+    };
 
-      if (cooldownRemaining && !otp) {
-        return { ok: false, reason: "MFA_REQUIRED", cooldownRemaining, tempToken: generateTempToken({ userId: String(user.id), type: "mfa" }, "15m") };
-      }
-
-      const { error } = await mailService.sendMfaOTP({
-        to: user.email,
-        name: user.first_name,
-        otp: otp!
-      });
-
-      if (error) {
-        await OTPService.deleteOTP(user.email, "mfa");
-        return { ok: false, reason: "MFA_OTP_EMAIL_SEND_FAILED" };
-      }
-
-      return {
-        ok: false,
-        reason: "MFA_REQUIRED",
-        tempToken: generateTempToken({ userId: String(user.id), type: "mfa" }, "15m")
-      };
-    }
-
-    // --- Success Response (No MFA) ---
-    const tokenPayload = { userId: String(user.id), email: user.email, role: user.role };
     return {
       ok: true,
       user: {
@@ -127,13 +81,18 @@ export const loginUser = async (payload: ExtendedLoginInput): Promise<LoginUserR
         first_name: user.first_name,
         last_name: user.last_name,
         email: user.email,
-        role: user.role,
+        roles: roleCodes,
+        permissions: permissions,
+        email_verified: user.email_verified,
         is_active: user.is_active,
+        two_factor_enabled: user.two_factor_enabled,
+        profile_picture_url: user.profile_picture_url,
         created_at: user.created_at,
         updated_at: user.updated_at,
       },
       accessToken: generateAccessToken(tokenPayload),
       refreshToken: generateRefreshToken(tokenPayload),
+      ...(!allProfilesExist && { needsProfileCompletion: true })
     };
   } catch (error) {
     console.error("LOGIN_SERVICE_ERROR:", error);

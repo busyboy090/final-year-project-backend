@@ -8,7 +8,7 @@ import type { QueryInterface } from 'sequelize';
 /** @type {import('sequelize-cli').Migration} */
 export default {
   up: async (queryInterface: QueryInterface) => {
-    await queryInterface.createTable('departments', {
+    await queryInterface.createTable('student_profiles', {
       id: {
         type: DataTypes.INTEGER,
         allowNull: false,
@@ -16,25 +16,48 @@ export default {
         autoIncrement: true,
       },
 
-      name: {
+      user_id: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        unique: true,
+        references: {
+          key: "id",
+          model: "users"
+        },
+        onDelete: "CASCADE",
+        onUpdate: "CASCADE"
+      },
+
+      matric_no: {
         type: DataTypes.STRING,
         allowNull: false
       },
 
-      code: {
-        type: DataTypes.STRING,
-        allowNull: false
-      },
-
-      faculty_id: {
+      department_id:{
         type: DataTypes.INTEGER,
         allowNull: true,
         references: {
           key: "id",
-          model: "faculties"
+          model: "departments"
         },
         onDelete: "SET NULL",
         onUpdate: "CASCADE"
+      },
+
+      level_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        references: {
+          key: "id",
+          model: "levels"
+        },
+        onDelete: "SET NULL",
+        onUpdate: "CASCADE"
+      },
+
+      gender: {
+        type: DataTypes.ENUM("male","female","other"),
+        allowNull: false
       },
 
       created_at: {
@@ -52,6 +75,6 @@ export default {
   },
 
   down: async (queryInterface: QueryInterface) => {
-    await queryInterface.dropTable('departments');
+    await queryInterface.dropTable('student_profiles');
   },
 };

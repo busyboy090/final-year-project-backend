@@ -62,6 +62,7 @@ export const loginController = async (req: Request, res: Response) => {
       success: true,
       user: result.user,
       accessToken: result.accessToken,
+      ...( result.needsProfileCompletion && { needsProfileCompletion: true } )
     });
   } catch (error) {
     return res.status(500).json({ success: false, message: "Server error" });

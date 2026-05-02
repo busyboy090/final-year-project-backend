@@ -8,7 +8,7 @@ import type { QueryInterface } from 'sequelize';
 /** @type {import('sequelize-cli').Migration} */
 export default {
   up: async (queryInterface: QueryInterface) => {
-    await queryInterface.createTable('departments', {
+    await queryInterface.createTable('academic_sessions', {
       id: {
         type: DataTypes.INTEGER,
         allowNull: false,
@@ -23,18 +23,24 @@ export default {
 
       code: {
         type: DataTypes.STRING,
+        allowNull: false,
+        unique: true
+      },
+
+      start_date: {
+        type: DataTypes.DATE,
         allowNull: false
       },
 
-      faculty_id: {
-        type: DataTypes.INTEGER,
-        allowNull: true,
-        references: {
-          key: "id",
-          model: "faculties"
-        },
-        onDelete: "SET NULL",
-        onUpdate: "CASCADE"
+      end_date: {
+        type: DataTypes.DATE,
+        allowNull: false
+      },
+
+      is_active: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false
       },
 
       created_at: {
@@ -52,6 +58,6 @@ export default {
   },
 
   down: async (queryInterface: QueryInterface) => {
-    await queryInterface.dropTable('departments');
+    await queryInterface.dropTable('academic_sessions');
   },
 };

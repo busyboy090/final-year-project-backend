@@ -1,24 +1,11 @@
 import bcrypt from "bcrypt";
 import db from "../../models/index.ts";
 import type { RegisterUserInput } from "../../validators/auth/register.schema.ts";
-import { generate2FASecret, generateQRCode } from "./2fa.service.ts";
 import { sendEmailVerification } from "../mail/emailVerification.service.ts";
 import { OTPService } from "./otp.service.ts";
 import { generateTempToken } from "../../utils/jwt.ts";
 import * as format from "../../utils/format.ts";
-
-type PublicUser = {
-  id: number;
-  first_name: string;
-  last_name: string;
-  email: string;
-  email_verified: boolean;
-  role: "administrator" | "organiser" | "user";
-  is_active: boolean;
-  two_factor_enabled: boolean;
-  created_at: Date;
-  updated_at: Date;
-};
+import type { PublicUser, UserRole } from "../../types/user.d.ts";
 
 type RegisterUserResult = {
   ok: boolean;
@@ -30,83 +17,117 @@ type RegisterUserResult = {
   verificationEmailSent?: boolean;
 };
 
-export const registerUser = async (payload: RegisterUserInput & { role?: string }): Promise<RegisterUserResult> => {
-  // Use a transaction to ensure data integrity
+export const registerUser = async (
+  payload: RegisterUserInput & { role?: string | string[] }
+): Promise<RegisterUserResult> => {
+  // 1. Pre-check: Ensure roles are normalized and not empty
+  const rawRoles = payload.role || "student";
+  const targetRoleCodes = Array.isArray(rawRoles) ? rawRoles : [rawRoles];
+
   const transaction = await db.sequelize.transaction();
 
   try {
+    // 2. Check for existing user BEFORE creating anything
     const existingUser = await db.User.findOne({ where: { email: payload.email } });
     if (existingUser) {
       await transaction.rollback();
       return { ok: false, reason: "EMAIL_EXISTS" };
     }
 
-    const hashedPassword = await bcrypt.hash(payload.password, 12);
+    // 3. Resolve Roles with explicit typing to avoid 'any' errors
+    const roleRecords = await db.Role.findAll({ 
+      where: { code: targetRoleCodes },
+      include: [{ 
+        model: db.Permission, 
+        as: 'permissions', 
+        attributes: ['name'],
+        through: { attributes: [] } // Cleans up the nested response
+      }],
+      transaction 
+    });
 
-    let twoFactorSecret: string | null = null;
-    let qrCode: string | undefined;
-
-    if (payload.role === "administrator") {
-      const { secret, otpauth } = generate2FASecret(payload.email);
-      twoFactorSecret = secret;
-      qrCode = await generateQRCode(otpauth);
+    if (roleRecords.length === 0) {
+      await transaction.rollback();
+      return { ok: false, reason: "INVALID_ROLE" };
     }
 
+    const hashedPassword = await bcrypt.hash(payload.password, 12);
+
+    // 4. Create User
     const createdUser = await db.User.create({
       first_name: format.capitalizeInitial(payload.first_name),
       last_name: format.capitalizeInitial(payload.last_name),
       email: payload.email,
       password: hashedPassword,
-      role: payload.role || "user",
       email_verified: false,
-      two_factor_enabled: !!twoFactorSecret, 
-      two_factor_secret: twoFactorSecret,
       is_active: true
     }, { transaction });
 
-    const { otp } = await OTPService.generateOTP(createdUser.email, "email_verification")
+    // 5. Create UserRole Links
+    const userRoleLinks = roleRecords.map((role:any) => ({
+      user_id: createdUser.id,
+      role_id: role.id
+    }));
 
-    // Use your dedicated mail service with the HTML template
+    await db.UserRole.bulkCreate(userRoleLinks, { transaction });
+
+    // 6. OTP Generation - Handle potential nulls safely
+    const otpResult = await OTPService.generateOTP(createdUser.email, "email_verification");
+    
+    // Check if OTP was actually generated (handles cooldown logic)
+    if (!otpResult.otp) {
+        await transaction.rollback();
+        return { ok: false, reason: "OTP_COOLDOWN_ACTIVE" };
+    }
+
     const emailResult = await sendEmailVerification({
       name: createdUser.first_name,
-      otp: otp,
+      otp: otpResult.otp,
       to: createdUser.email
     });
 
     if (emailResult.error) {
-      await transaction.rollback(); // Rollback user creation if email fails
-      await OTPService.deleteOTP(createdUser.email, "email-verification")
+      await transaction.rollback();
       return { ok: false, reason: "VERIFICATION_EMAIL_SEND_FAILED" };
     }
 
-    // Commit changes to the DB
-    await transaction.commit();
+    // 7. Extracting flattened data safely
+    const roleCodes = roleRecords.map((r:any) => r.code as UserRole);
+    const permissions = [...new Set(
+      roleRecords.flatMap((r:any) => r.permissions?.map((p: any) => p.name) || [])
+    )] as string[];
 
-    const user: PublicUser = {
-      id: createdUser.id,
-      first_name: createdUser.first_name,
-      last_name: createdUser.last_name,
-      email: createdUser.email,
-      email_verified: createdUser.email_verified,
-      role: "user",
-      two_factor_enabled: createdUser.two_factor_enabled,
-      is_active: createdUser.is_active,
-      created_at: createdUser.created_at,
-      updated_at: createdUser.updated_at,
-    };
+    // 8. Commit the transaction
+    await transaction.commit();
 
     return {
       ok: true,
-      user,
+      user: {
+        id: createdUser.id,
+        first_name: createdUser.first_name,
+        last_name: createdUser.last_name,
+        email: createdUser.email,
+        email_verified: createdUser.email_verified,
+        roles: roleCodes,
+        permissions: permissions,
+        two_factor_enabled: createdUser.two_factor_enabled,
+        profile_picture_url: createdUser.profile_picture_url,
+        is_active: createdUser.is_active,
+        created_at: createdUser.created_at,
+        updated_at: createdUser.updated_at,
+      },
       verificationEmailSent: true,
-      tempToken: generateTempToken({ userId: String(createdUser.id), email: createdUser.email, type: "email_verification" }, "15m"),
-      ...(qrCode && { twoFactorQRCode: qrCode }),
-      ...(twoFactorSecret && { twoFactorSecret: twoFactorSecret }),
+      tempToken: generateTempToken({ 
+          userId: String(createdUser.id), 
+          email: createdUser.email, 
+          type: "email_verification" 
+      }, "15m"),
     };
 
   } catch (error) {
+    // Check if transaction was initialized before rolling back
     if (transaction) await transaction.rollback();
-    console.error("CRITICAL_REGISTRATION_ERROR:", error);
+    console.error("REGISTRATION_SERVICE_ERROR:", error);
     return { ok: false, reason: "INTERNAL_SERVER_ERROR" };
   }
 };

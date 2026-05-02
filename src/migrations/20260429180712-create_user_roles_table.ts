@@ -8,7 +8,7 @@ import type { QueryInterface } from 'sequelize';
 /** @type {import('sequelize-cli').Migration} */
 export default {
   up: async (queryInterface: QueryInterface) => {
-    await queryInterface.createTable('departments', {
+    await queryInterface.createTable('user_roles', {
       id: {
         type: DataTypes.INTEGER,
         allowNull: false,
@@ -16,24 +16,25 @@ export default {
         autoIncrement: true,
       },
 
-      name: {
-        type: DataTypes.STRING,
-        allowNull: false
-      },
-
-      code: {
-        type: DataTypes.STRING,
-        allowNull: false
-      },
-
-      faculty_id: {
+      role_id: {
         type: DataTypes.INTEGER,
-        allowNull: true,
+        allowNull: false,
         references: {
           key: "id",
-          model: "faculties"
+          model: "roles"
         },
-        onDelete: "SET NULL",
+        onDelete: "CASCADE",
+        onUpdate: "CASCADE"
+      },
+
+      user_id: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        references: {
+          key: "id",
+          model: "users"
+        },
+        onDelete: "CASCADE",
         onUpdate: "CASCADE"
       },
 
@@ -52,6 +53,6 @@ export default {
   },
 
   down: async (queryInterface: QueryInterface) => {
-    await queryInterface.dropTable('departments');
+    await queryInterface.dropTable('user_roles');
   },
 };

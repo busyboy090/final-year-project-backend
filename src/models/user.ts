@@ -3,8 +3,10 @@ import type {
   Sequelize, 
   InferAttributes, 
   InferCreationAttributes, 
-  CreationOptional 
+  CreationOptional,
+  NonAttribute
 } from 'sequelize';
+import { Role } from './role.ts'; 
 
 export class User extends Model<InferAttributes<User>, InferCreationAttributes<User>> {
   declare id: CreationOptional<number>;
@@ -12,16 +14,54 @@ export class User extends Model<InferAttributes<User>, InferCreationAttributes<U
   declare last_name: string;
   declare email: string;
   declare password: string | null;
-  declare role: 'administrator' | 'organiser' | 'user';
   declare email_verified: boolean;
   declare is_active: boolean;
+  declare profile_picture_url: string | null;
   declare two_factor_secret: string | null;
   declare two_factor_enabled: boolean;
   declare two_factor_recovery_codes: string | null;
 
-  // static associate(models: any) {
-  //   // Associations go here
-  // }
+  // Timestamps
+  declare created_at: CreationOptional<Date>;
+  declare updated_at: CreationOptional<Date>;
+
+  // Associations (Virtual Fields)
+  declare roles?: NonAttribute<Role[]>; // Array of roles for multi-role support
+  declare studentProfile?: NonAttribute<any>;
+  declare adminProfile?: NonAttribute<any>;
+  declare staffProfile?: NonAttribute<any>;
+
+  static associate(models: any) {
+    // 1. Many-to-Many Association with Roles
+    User.belongsToMany(models.Role, {
+      through: models.UserRole,
+      foreignKey: 'user_id',
+      otherKey: 'role_id',
+      as: 'roles' // This allows user.roles access
+    });
+
+    // 2. Direct link to UserRole junction table (for administrative tasks)
+    User.hasMany(models.UserRole, {
+      foreignKey: 'user_id',
+      as: 'userRoles'
+    });
+
+    // 3. Profile Associations (1:1)
+    User.hasOne(models.StudentProfile, {
+      foreignKey: 'user_id',
+      as: 'studentProfile'
+    });
+
+    User.hasOne(models.AdminProfile, {
+      foreignKey: 'user_id',
+      as: 'adminProfile'
+    });
+
+    User.hasOne(models.StaffProfile, {
+      foreignKey: 'user_id',
+      as: 'staffProfile'
+    });
+  }
 }
 
 export default (sequelize: Sequelize) => {
@@ -52,10 +92,9 @@ export default (sequelize: Sequelize) => {
         type: DataTypes.STRING,
         allowNull: true,
       },
-      role: {
-        type: DataTypes.ENUM('administrator', 'organiser', 'user'),
-        allowNull: false,
-        defaultValue: 'user',
+      profile_picture_url: {
+        type: DataTypes.TEXT,
+        allowNull: true
       },
       email_verified: {
         type: DataTypes.BOOLEAN,
@@ -77,9 +116,11 @@ export default (sequelize: Sequelize) => {
         defaultValue: false,
       },
       two_factor_recovery_codes: {
-        type: DataTypes.TEXT, // Changed to TEXT to support longer strings of codes
+        type: DataTypes.TEXT,
         allowNull: true,
       },
+      created_at: DataTypes.DATE,
+      updated_at: DataTypes.DATE,
     },
     {
       sequelize,

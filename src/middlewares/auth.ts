@@ -1,10 +1,10 @@
 import * as jwt from './../utils/jwt.ts';
 import type { Request, Response, NextFunction } from "express";
 import db from "../models/index.ts";
+import { ProfileService } from '../services/user/profile.service.ts';
 
-export const authenticate = (req: Request, res: Response, next: NextFunction) => {
+export const authenticate = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    // Extract token from Authorization header (Bearer <token>)
     const authHeader = req.headers.authorization;
     const token = authHeader && authHeader.split(' ')[1];
 
@@ -16,16 +16,66 @@ export const authenticate = (req: Request, res: Response, next: NextFunction) =>
       });
     }
 
-    // Verify the token
-    const decoded = jwt.verifyAccessToken(token);
+    // 1. Verify Access Token
+    const decoded = jwt.verifyAccessToken(token) as {
+      userId: string;
+      email: string;
+      roles: string[];
+      permissions: string[];
+    };
 
-    // Attach the payload to the request object
-    req.user = decoded;
+    // 2. Fetch user with all associated roles
+    const user = await db.User.findByPk(Number(decoded.userId), {
+      include: [
+        {
+          model: db.Role,
+          as: 'roles', // Using the Many-to-Many association
+          attributes: ['code'],
+        }
+      ]
+    });
 
-    // Move to the next middleware/controller
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found"
+      });
+    }
+
+    // 3. Extract role codes into an array
+    const userRoleCodes = user.roles?.map((r: any) => r.code) || [];
+
+    // 4. Multi-Role Profile Check
+    // We check if ALL assigned roles have completed their profiles
+    const allProfilesExist = await ProfileService.checkAllUserProfiles(user.id, userRoleCodes);
+
+    /**
+     * 5. Handle Incomplete Profile
+     * Skips check if calling a completion endpoint.
+     * Note: I updated this to check for 'complete' to cover all profile types.
+     */
+    const isCompletionRoute = req.path.includes('/profile/student/complete'); 
+    
+    if (!allProfilesExist && !isCompletionRoute) {
+      return res.status(403).json({ 
+        success: false,
+        message: "Please complete your profile to continue.",
+        needsProfileCompletion: true,
+        user: {
+          id: user.id,
+          roles: userRoleCodes // Returns the array of roles
+        }
+      });
+    }
+
+    // 6. Attach full decoded payload + latest role data to request
+    req.user = {
+        ...decoded,
+        roles: userRoleCodes
+    };
+
     next();
   } catch (error: any) {
-    // Handle specific JWT errors
     if (error.name === "TokenExpiredError") {
       return res.status(401).json({
         success: false,
@@ -50,10 +100,13 @@ export const authenticate = (req: Request, res: Response, next: NextFunction) =>
   }
 };
 
+/**
+ * Temp token verification (OTP flows) remains largely the same 
+ * but uses your decoded types.
+ */
 export const verifyTempToken = (type: string) => {
     return async (req: Request, res: Response, next: NextFunction) => {
         try {
-            // 1. Extract the tempToken from the HTTP-only cookie
             const tempToken = req.signedCookies.tempToken;
 
             if (!tempToken) {
@@ -64,14 +117,12 @@ export const verifyTempToken = (type: string) => {
                 });
             }
 
-            // 2. Verify the token using your utility
             const decoded = jwt.verifyTempToken(tempToken) as { 
                 userId: string; 
                 email: string; 
                 type: string 
             };
 
-            // --- CHECK THE TYPE ---
             if (decoded.type.toLowerCase() !== type.toLowerCase()) {
                 return res.status(403).json({
                     success: false,
@@ -80,7 +131,6 @@ export const verifyTempToken = (type: string) => {
                 });
             }
 
-            // 3. Find user 
             const user = await db.User.findByPk(Number(decoded.userId));
 
             if (!user) {
@@ -91,7 +141,7 @@ export const verifyTempToken = (type: string) => {
             }
 
             req.user = decoded;
-            next()
+            next();
         } catch (error: any) {
             if (error.name === "TokenExpiredError" || error.name === "JsonWebTokenError") {
                 return res.status(403).json({

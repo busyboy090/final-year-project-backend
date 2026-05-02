@@ -18,7 +18,7 @@ import { apiLimiter } from './middlewares/ratelimiter.ts';
 import type { Request, Response, Application } from 'express';
 
 // Routes
-import routes from "./routes/index.ts";
+import routes from "./routes/index.route.ts";
 
 const app: Application = express();
 const PORT = env.PORT;

@@ -1,6 +1,8 @@
 import type { Request, Response } from "express";
 import { generateAccessToken, verifyRefreshToken } from "../../utils/jwt.ts";
-import db from "../../models/index.ts"
+import db from "../../models/index.ts";
+import { ProfileService } from "../../services/user/profile.service.ts";
+import type { UserRole } from "../../types/user.d.ts";
 
 export const generateNewAccessToken = async (req: Request, res: Response) => {
   try {
@@ -15,11 +17,23 @@ export const generateNewAccessToken = async (req: Request, res: Response) => {
     }
 
     // 2. Verify the token using your utility
-    // verifyRefreshToken will throw an error if the token is invalid or expired
     const decoded = verifyRefreshToken(refreshToken);
 
-    // find user
-    const user = await db.User.findByPk(Number(decoded.userId));
+    // 3. Find user with ALL associated Roles and their Permissions
+    // Since roles are many-to-many, we use the 'roles' association
+    const user = await db.User.findByPk(Number(decoded.userId), {
+      include: [
+        {
+          model: db.Role,
+          as: 'roles',
+          include: [{ 
+            model: db.Permission, 
+            as: 'permissions', 
+            attributes: ['name'] 
+          }]
+        }
+      ]
+    });
 
     if (!user) {
       return res.status(404).json({
@@ -28,18 +42,29 @@ export const generateNewAccessToken = async (req: Request, res: Response) => {
       });
     }
 
-    // 3. Prepare the new payload 
-    // We explicitly pick the fields we want to pass forward
+    // 4. Flatten Role Codes and Permissions
+    const roleCodes = user.roles?.map((r: any) => r.code) as UserRole[] || [];
+    
+    const permissions = [...new Set(
+      user.roles?.flatMap((r: any) => r.permissions?.map((p: any) => p.name)) || []
+    )] as string[];
+
+    // 5. Multi-Role Profile Check
+    // Ensures all required profile records exist across all roles
+    const allProfilesExist = await ProfileService.checkAllUserProfiles(user.id, roleCodes);
+
+    // 6. Prepare the new payload with arrays for the JWT
     const tokenPayload = {
-      userId: user.id,
+      userId: String(user.id),
       email: user.email,
-      role: user.role,
+      roles: roleCodes,
+      permissions: permissions
     };
 
-    // 4. Generate the new access token
+    // 7. Generate the new access token
     const newAccessToken = generateAccessToken(tokenPayload);
 
-    // 5. Return success
+    // 8. Return success
     return res.status(200).json({
       success: true,
       message: "Token refreshed successfully",
@@ -49,13 +74,14 @@ export const generateNewAccessToken = async (req: Request, res: Response) => {
         first_name: user.first_name,
         last_name: user.last_name,
         email: user.email,
-        role: user.role,
+        roles: roleCodes, // Returning the array of roles
+        permissions: permissions,
         is_active: user.is_active
-      }
+      },
+      ...(!allProfilesExist && { needsProfileCompletion: true })
     });
 
   } catch (error: any) {
-    // If jwt.verify fails, it throws an error we catch here
     if (error.name === "TokenExpiredError" || error.name === "JsonWebTokenError") {
       return res.status(403).json({
         success: false,

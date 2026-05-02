@@ -1,14 +1,12 @@
 'use strict';
 
 import { DataTypes, Sequelize } from 'sequelize';
-
-// Types
 import type { QueryInterface } from 'sequelize';
 
 /** @type {import('sequelize-cli').Migration} */
 export default {
   up: async (queryInterface: QueryInterface) => {
-    await queryInterface.createTable('departments', {
+    await queryInterface.createTable('permissions', {
       id: {
         type: DataTypes.INTEGER,
         allowNull: false,
@@ -16,25 +14,23 @@ export default {
         autoIncrement: true,
       },
 
+      // The unique code name used in middleware (e.g., 'edit_repository')
       name: {
         type: DataTypes.STRING,
-        allowNull: false
+        allowNull: false,
+        unique: true,
       },
 
-      code: {
+      // A friendly description for the admin dashboard
+      description: {
         type: DataTypes.STRING,
-        allowNull: false
+        allowNull: true,
       },
 
-      faculty_id: {
-        type: DataTypes.INTEGER,
-        allowNull: true,
-        references: {
-          key: "id",
-          model: "faculties"
-        },
-        onDelete: "SET NULL",
-        onUpdate: "CASCADE"
+      // Grouping permissions (e.g., 'event_management', 'user_management')
+      module: {
+        type: DataTypes.STRING,
+        allowNull: false,
       },
 
       created_at: {
@@ -52,6 +48,6 @@ export default {
   },
 
   down: async (queryInterface: QueryInterface) => {
-    await queryInterface.dropTable('departments');
+    await queryInterface.dropTable('permissions');
   },
 };

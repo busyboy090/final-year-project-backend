@@ -40,16 +40,15 @@ export default {
         allowNull: true,
       },
 
-      role: {
-        type: DataTypes.ENUM('administrator', 'organiser', 'user'),
-        allowNull: false,
-        defaultValue: 'user',
-      },
-
       email_verified: {
         type: DataTypes.BOOLEAN,
         allowNull: false,
         defaultValue: false
+      },
+
+      profile_picture_url: {
+        type: DataTypes.TEXT,
+        allowNull: true
       },
 
       is_active: {
@@ -89,8 +88,5 @@ export default {
 
   down: async (queryInterface: QueryInterface) => {
     await queryInterface.dropTable('users');
-    
-    // Postgres specific: Drop the enum type created by the table
-    await queryInterface.sequelize.query('DROP TYPE IF EXISTS "enum_users_role";');
   },
 };
