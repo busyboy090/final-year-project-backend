@@ -3,7 +3,7 @@ import type { Request, Response } from "express";
 import { OTPService } from '../../services/auth/otp.service.ts';
 import * as jwt from "../../utils/jwt.ts";
 import db from '../../models/index.ts';
-import config from "../../configs/env.ts"
+import config from "../../config/env.ts"
 
 export const requestResetPasswordController = async (req: Request, res: Response) => {
     try {

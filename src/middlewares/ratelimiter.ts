@@ -1,6 +1,6 @@
 import { rateLimit } from 'express-rate-limit';
 import { RedisStore } from 'rate-limit-redis';
-import redis from '../configs/redis.ts';
+import redis from '../config/redis.ts';
 import type { Request, Response } from 'express';
 
 /**

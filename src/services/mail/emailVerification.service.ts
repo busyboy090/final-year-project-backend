@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
-import sendMail from "../../configs/resend.ts";
-import config from "../../configs/env.ts";
+import sendMail from "../../config/resend.ts";
+import config from "../../config/env.ts";
 import { fileURLToPath } from 'url';
 
 type Payload = {

@@ -1,21 +1,39 @@
 import type { Request, Response } from "express";
 import { ProfileService } from "../../services/user/profile.service.ts";
+import type { UserRole } from "../../types/user.d.ts";
 
 export class ProfileController {
   /**
-   * Fetches the current logged-in user's flattened profile
+   * 
+   * Fetches the flattened profile based on a specific role or the primary role.
    */
   static async getMyProfile(req: Request, res: Response) {
     try {
       const userId = Number(req.user?.userId);
-      const role = req.user?.role as any;
+      
+      /**
+       * 1. Multi-role handling: 
+       * We take the role from the URL parameter if provided (e.g., /profile/staff),
+       * otherwise, we default to the first role in the user's roles array.
+       */
+      const requestedRole = req.params.role as UserRole;
+      const userRoles = req.user?.roles || [];
+      
+      const roleToFetch = requestedRole || userRoles[0];
 
-      const profile = await ProfileService.getFlattenedUserProfile(userId, role);
+      if (!roleToFetch) {
+        return res.status(400).json({
+          success: false,
+          message: "No valid role identified for profile fetching",
+        });
+      }
+
+      const profile = await ProfileService.getFlattenedUserProfile(userId, roleToFetch);
 
       if (!profile) {
         return res.status(404).json({
           success: false,
-          message: "Profile not found",
+          message: `Profile data for role '${roleToFetch}' not found`,
         });
       }
 
@@ -34,15 +52,18 @@ export class ProfileController {
 
   /**
    * PUT /api/v1/profile/student/complete
-   * Updates student personal info and academic profile
+   * Updates student personal info and academic profile.
    */
   static async completeStudentProfile(req: Request, res: Response) {
     try {
-      const updatedProfile = await ProfileService.updateStudentProfile(Number(req.user?.userId), req.body);
+      const userId = Number(req.user?.userId);
+      
+      // Atomic update for User names and StudentProfile table
+      const updatedProfile = await ProfileService.updateStudentProfile(userId, req.body);
 
       return res.status(200).json({
         success: true,
-        message: "Profile updated successfully",
+        message: "Student profile updated successfully",
         data: updatedProfile,
       });
     } catch (error: any) {
@@ -56,7 +77,7 @@ export class ProfileController {
 
   /**
    * PATCH /api/v1/profile/avatar
-   * Updates the profile picture URL in the User table
+   * Centralized update for the profile picture URL.
    */
   static async updateAvatar(req: Request, res: Response) {
     try {

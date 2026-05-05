@@ -1,6 +1,6 @@
 import { generateSecret, verify, generateURI } from "otplib";
 import QRCode from 'qrcode';
-import config from "../../configs/env.ts";
+import config from "../../config/env.ts";
 
 export const generate2FASecret = (email: string) => {
     const secret = generateSecret();

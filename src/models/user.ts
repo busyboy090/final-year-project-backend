@@ -1,12 +1,12 @@
 import { Model, DataTypes } from 'sequelize';
-import type { 
-  Sequelize, 
-  InferAttributes, 
-  InferCreationAttributes, 
+import type {
+  Sequelize,
+  InferAttributes,
+  InferCreationAttributes,
   CreationOptional,
   NonAttribute
 } from 'sequelize';
-import { Role } from './role.ts'; 
+import { Role } from './role.ts';
 
 export class User extends Model<InferAttributes<User>, InferCreationAttributes<User>> {
   declare id: CreationOptional<number>;
@@ -61,6 +61,14 @@ export class User extends Model<InferAttributes<User>, InferCreationAttributes<U
       foreignKey: 'user_id',
       as: 'staffProfile'
     });
+
+    // User <-> Event (Many-to-Many)
+    User.belongsToMany(models.Event, {
+      through: models.EventEnrollment,
+      foreignKey: 'user_id',
+      otherKey: 'event_id',
+      as: 'enrolledEvents'
+    });
   }
 }
 
@@ -100,7 +108,7 @@ export default (sequelize: Sequelize) => {
         type: DataTypes.BOOLEAN,
         allowNull: false,
         defaultValue: false
-      }, 
+      },
       is_active: {
         type: DataTypes.BOOLEAN,
         allowNull: false,
@@ -126,16 +134,16 @@ export default (sequelize: Sequelize) => {
       sequelize,
       modelName: 'User',
       tableName: 'users',
-      underscored: true, 
-      timestamps: true, 
+      underscored: true,
+      timestamps: true,
       defaultScope: {
         attributes: { exclude: ['password', 'two_factor_secret', 'two_factor_recovery_codes'] },
       },
       scopes: {
-        withSecrets: { 
-          attributes: { 
-            include: ['password', 'two_factor_secret'] 
-          } 
+        withSecrets: {
+          attributes: {
+            include: ['password', 'two_factor_secret']
+          }
         },
       }
     }

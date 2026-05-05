@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import redis from "../../configs/redis.ts";
+import redis from "../../config/redis.ts";
 
 type OTPType = "mfa" | "email_verification" | "password_reset";
 

@@ -23,6 +23,9 @@ interface EnvConfig {
   REDIS_MAX_RETRIES: number;
   RESEND_API_KEY: string;
   DOMAIN: string;
+  CLOUDINARY_CLOUD_NAME: string;
+  CLOUDINARY_API_KEY: string;
+  CLOUDINARY_API_SECRET: string;
 }
 
 const env: EnvConfig = {
@@ -45,7 +48,10 @@ const env: EnvConfig = {
   UPSTASH_REDIS_URL: process.env.UPSTASH_REDIS_URL || "",
   REDIS_MAX_RETRIES: Number(process.env.REDIS_MAX_RETRIES) || 1,
   RESEND_API_KEY: process.env.RESEND_API_KEY || "",
-  DOMAIN: process.env.DOMAIN || ""
+  DOMAIN: process.env.DOMAIN || "",
+  CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME || "",
+  CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY || "",
+  CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET || "",
 };
 
 // Logic check: Ensure critical DB and Secret variables exist in production

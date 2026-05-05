@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
 import { loginUser } from "../../services/auth/login.service.ts";
-import config from "../../configs/env.ts";
+import config from "../../config/env.ts";
 
 export const loginController = async (req: Request, res: Response) => {
   try {

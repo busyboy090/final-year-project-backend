@@ -7,11 +7,11 @@ import cookieParser from "cookie-parser";
 import swaggerUi from "swagger-ui-express";
 
 // Local Modules
-import env from "./configs/env.ts";
-import corsOptions from "./configs/cors.ts";
-import helmetOptions from './configs/helmet.ts';
-import csrfProtection from './configs/csrf.ts';
-import swaggerSpec from "./configs/swagger.ts";
+import env from "./config/env.ts";
+import corsOptions from "./config/cors.ts";
+import helmetOptions from './config/helmet.ts';
+import csrfProtection from './config/csrf.ts';
+import swaggerSpec from "./config/swagger.ts";
 import { apiLimiter } from './middlewares/ratelimiter.ts';
 
 // Types

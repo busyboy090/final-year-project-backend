@@ -2,7 +2,7 @@ import type { Request, Response } from "express";
 import db from "../../models/index.ts";
 import { OTPService } from "../../services/auth/otp.service.ts";
 import * as jwt from "../../utils/jwt.ts"
-import config from "../../configs/env.ts";
+import config from "../../config/env.ts";
 import { ProfileService } from "../../services/user/profile.service.ts";
 import type { UserRole } from "../../types/user.d.ts";
 

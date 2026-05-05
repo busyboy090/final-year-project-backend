@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken';
-import config from '../configs/env.ts';
+import config from '../config/env.ts';
 
 export interface TokenPayload {
   userId: string | number;

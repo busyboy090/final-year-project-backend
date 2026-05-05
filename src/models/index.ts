@@ -4,8 +4,8 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
 import { Sequelize, DataTypes } from 'sequelize';
-import configs from '../configs/db.ts';
-import env from '../configs/env.ts';
+import configs from '../config/db.ts';
+import env from '../config/env.ts';
 
 // Recreate __filename and __dirname for ESM
 const __filename = fileURLToPath(import.meta.url);

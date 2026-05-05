@@ -13,6 +13,7 @@ export default {
       { name: 'manage_faculties', module: 'system', created_at: now, updated_at: now },
       { name: 'manage_roles', module: 'system', created_at: now, updated_at: now },
       { name: 'view_faculty_reports', module: 'system', created_at: now, updated_at: now },
+      { name: 'manage_structure', module: 'system', created_at: now, updated_at: now },
 
       // Event Management Module (ADUN-EMS)
       { name: 'create_event', module: 'events', created_at: now, updated_at: now },
@@ -81,6 +82,7 @@ export default {
       { role_id: roleMap['super-admin'], permission_id: permMap['manage_faculties'] },
       { role_id: roleMap['super-admin'], permission_id: permMap['manage_roles'] },
       { role_id: roleMap['super-admin'], permission_id: permMap['manage_students'] },
+      { role_id: roleMap['super-admin'], permission_id: permMap['manage_structure'] },
     ];
 
     // Add timestamps to all assignments

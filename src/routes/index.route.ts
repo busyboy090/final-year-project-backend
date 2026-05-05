@@ -6,7 +6,11 @@ import type { Request, Response } from "express";
 import AuthRoutes from "./auth.route.ts";
 import UserRoutes from "./user.route.ts";
 import LevelRoutes from "./level.route.ts";
-import DepartmentRoutes from "./department.route.ts"
+import DepartmentRoutes from "./department.route.ts";
+import VenueRoutes from "./venue.route.ts";
+import EventRoutes from "./event/event.route.ts";
+import FacultyRoutes from "./faculty.route.ts";
+import FacilityRoutes from "./facility.route.ts";
 
 const router: Router  = Router();
 
@@ -48,5 +52,17 @@ router.use("/levels", LevelRoutes)
 
 // Departments Routes
 router.use("/departments", DepartmentRoutes)
+
+// Venue Routes
+router.use("/venues", VenueRoutes)
+
+// Event Routes
+router.use("/events", EventRoutes)
+
+// Faculty Routes
+router.use("/faculties", FacultyRoutes)
+
+// Facility Routes
+router.use("/facilities", FacilityRoutes)
 
 export default router;

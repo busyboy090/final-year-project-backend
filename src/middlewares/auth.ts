@@ -30,7 +30,7 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
         {
           model: db.Role,
           as: 'roles', // Using the Many-to-Many association
-          attributes: ['code'],
+          attributes: ['code',"id"],
         }
       ]
     });
@@ -44,6 +44,7 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
 
     // 3. Extract role codes into an array
     const userRoleCodes = user.roles?.map((r: any) => r.code) || [];
+    const userRoleIds = user.roles?.map((r: any) => r.id) || [];
 
     // 4. Multi-Role Profile Check
     // We check if ALL assigned roles have completed their profiles
@@ -71,7 +72,8 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
     // 6. Attach full decoded payload + latest role data to request
     req.user = {
         ...decoded,
-        roles: userRoleCodes
+        roles: userRoleCodes,
+        role_ids: userRoleIds
     };
 
     next();

@@ -15,6 +15,7 @@ export class StudentProfile extends Model<InferAttributes<StudentProfile>, Infer
   declare user_id: number;
   declare matric_no: string;
   declare department_id: number | null;
+  declare title: string | null;
   declare level_id: number | null;
   declare gender: 'male' | 'female';
 
@@ -87,6 +88,10 @@ export default (sequelize: Sequelize) => {
       gender: {
         type: DataTypes.ENUM('male', 'female'),
         allowNull: false,
+      },
+      title: {
+        type: DataTypes.STRING,
+        allowNull: true
       },
       created_at: DataTypes.DATE,
       updated_at: DataTypes.DATE,
