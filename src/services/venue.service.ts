@@ -168,4 +168,7 @@ export class VenueService {
     });
     return !conflictingEvent;
   }
+
+  // Delete Venue
+  
 }

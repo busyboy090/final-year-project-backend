@@ -58,7 +58,26 @@ export class VenueController {
    */
   static async updateVenue(req: Request, res: Response) {
     try {
-      const result = await VenueService.updateVenue(Number(req.params.id), req.body);
+      const { id } = req.params;
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
+
+      // 1. Start with the existing body data
+      const updatePayload: any = { ...req.body };
+
+      // 2. Handle Thumbnail Update (if provided)
+      const thumbnailFile = files?.thumbnail?.[0];
+      if (thumbnailFile) {
+        updatePayload.thumbnail = await CloudinaryHelper.uploadSingle(thumbnailFile);
+      }
+
+      // 3. Handle Gallery/Images Update (if provided)
+      const galleryFiles = files?.images || [];
+      if (galleryFiles.length > 0) {
+        updatePayload.images = await CloudinaryHelper.uploadMultiple(galleryFiles);
+      }
+
+      // 4. Send the merged payload to the service
+      const result = await VenueService.updateVenue(Number(id), updatePayload);
 
       if (result.ok) {
         return res.status(200).json({
@@ -68,9 +87,17 @@ export class VenueController {
         });
       }
 
-      return res.status(404).json({ success: false, message: "Venue not found." });
+      return res.status(404).json({
+        success: false,
+        message: result.reason === "VENUE_NOT_FOUND" ? "Venue not found." : "Update failed."
+      });
+
     } catch (error: any) {
-      return res.status(500).json({ success: false, message: "Internal server error." });
+      console.error("Update Error:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Internal server error."
+      });
     }
   }
 
@@ -94,11 +121,11 @@ export class VenueController {
     try {
       const { id } = req.params;
       const result = await VenueService.getVenueById(Number(id));
-      
+
       if (!result.ok) {
         return res.status(404).json({ success: false, message: "Venue not found." });
       }
-      
+
       return res.status(200).json({ success: true, data: result.data });
     } catch (error) {
       return res.status(500).json({ success: false, message: "Internal server error." });

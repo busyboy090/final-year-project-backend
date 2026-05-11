@@ -58,12 +58,6 @@ export default {
         allowNull: true
       },
 
-      features: {
-        type: DataTypes.ARRAY(DataTypes.TEXT),
-        allowNull: true,
-        defaultValue: []
-      },
-
       created_at: {
         allowNull: false,
         type: DataTypes.DATE,

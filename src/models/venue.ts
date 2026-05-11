@@ -19,7 +19,6 @@ export class Venue extends Model<InferAttributes<Venue>, InferCreationAttributes
   declare location: string;
   declare images: string[];
   declare thumbnail: string | null;
-  declare features: string[]; // Keep for simple text-based features
   
   declare created_at: CreationOptional<Date>;
   declare updated_at: CreationOptional<Date>;
@@ -90,11 +89,6 @@ export default (sequelize: Sequelize) => {
       thumbnail: {
         type: DataTypes.TEXT,
         allowNull: true,
-      },
-      features: {
-        type: DataTypes.ARRAY(DataTypes.TEXT),
-        allowNull: true,
-        defaultValue: [],
       },
       created_at: DataTypes.DATE,
       updated_at: DataTypes.DATE,
