@@ -34,4 +34,7 @@ export type PublicUser = {
   profile_picture_url: string | null;
   created_at: Date;
   updated_at: Date;
+
+  /** True when this user has an admin profile flagged as system super administrator */
+  is_super_admin?: boolean;
 };

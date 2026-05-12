@@ -321,4 +321,12 @@ router.get(
   authControllers.verifyTempTokenController("password_reset")
 )
 
+// update 2fa
+router.patch(
+  "/2fa-toggle", 
+  authMiddleware.authenticate, 
+  validate(authSchema.toggle2FASchema), 
+  authControllers.TwoFAController.toggle
+);
+
 export default router;

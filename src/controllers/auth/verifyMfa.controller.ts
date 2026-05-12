@@ -53,6 +53,12 @@ export const verifyMfaController = async (req: Request, res: Response) => {
         // 4. Multi-Role Profile Completion Check
         const allProfilesExist = await ProfileService.checkAllUserProfiles(user.id, roleCodes);
 
+        const adminProfile = await db.AdminProfile.findOne({
+            where: { user_id: user.id },
+            attributes: ["is_super_admin"],
+        });
+        const isSuperAdminAccount = Boolean(adminProfile?.is_super_admin);
+
         // 5. Prepare Success Response & Multi-Role Tokens
         const tokenPayload = {
             userId: String(user.id),
@@ -83,9 +89,13 @@ export const verifyMfaController = async (req: Request, res: Response) => {
                 email: user.email,
                 roles: roleCodes,
                 permissions: permissions,
+                email_verified: user.email_verified,
                 is_active: user.is_active,
+                two_factor_enabled: user.two_factor_enabled,
+                profile_picture_url: user.profile_picture_url,
                 created_at: user.created_at,
                 updated_at: user.updated_at,
+                is_super_admin: isSuperAdminAccount,
             },
             accessToken: jwt.generateAccessToken(tokenPayload),
             ...(!allProfilesExist && { needsProfileCompletion: true })

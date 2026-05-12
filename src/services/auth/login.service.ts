@@ -66,6 +66,12 @@ export const loginUser = async (payload: { email: string; password: string }): P
 
     // 4. Verify ALL required Profiles
     const allProfilesExist = await ProfileService.checkAllUserProfiles(user.id, roleCodes);
+
+    const adminProfile = await db.AdminProfile.findOne({
+      where: { user_id: user.id },
+      attributes: ["is_super_admin"],
+    });
+    const isSuperAdminAccount = Boolean(adminProfile?.is_super_admin);
     
     const tokenPayload = { 
       userId: String(user.id), 
@@ -89,6 +95,7 @@ export const loginUser = async (payload: { email: string; password: string }): P
         profile_picture_url: user.profile_picture_url,
         created_at: user.created_at,
         updated_at: user.updated_at,
+        is_super_admin: isSuperAdminAccount,
       },
       accessToken: generateAccessToken(tokenPayload),
       refreshToken: generateRefreshToken(tokenPayload),

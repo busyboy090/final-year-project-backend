@@ -10,9 +10,9 @@ export const validate = (schema: ZodObject) =>
         params: req.params,
       });
 
-      if (result.body !== undefined)   req.body   = result.body;
-      if (result.query !== undefined)  req.query  = result.query as typeof req.query;
-      if (result.params !== undefined) req.params = result.params;
+      if (result.body) Object.assign(req.body, result.body);
+      if (result.query) Object.assign(req.query, result.query);
+      if (result.params) Object.assign(req.params, result.params);
 
       return next();
     } catch (error) {

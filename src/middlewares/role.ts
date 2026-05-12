@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from "express";
 import RoleService from "../services/role.service.ts";
 import type { UserRole } from "../types/user";
+import db from "../models/index.ts";
 
 /**
  * Middleware to check if any of the user's multiple roles grant a specific permission.
@@ -82,4 +83,47 @@ export const hasRole = (allowedRoles: UserRole[]) => {
             });
         }
     };
+};
+
+/**
+ * Requires an account with the super-admin role and `admin_profiles.is_super_admin = true`.
+ */
+export const requireSuperAdminAccount = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+) => {
+    try {
+        const userId = Number(req.user?.userId);
+        if (!userId) {
+            return res.status(401).json({ success: false, message: "Unauthorized" });
+        }
+
+        const roles = req.user?.roles;
+        if (!roles?.includes("super-admin")) {
+            return res.status(403).json({
+                success: false,
+                message: "Super administrator access is required.",
+            });
+        }
+
+        const profile = await db.AdminProfile.findOne({
+            where: { user_id: userId, is_super_admin: true },
+        });
+
+        if (!profile) {
+            return res.status(403).json({
+                success: false,
+                message: "This action is restricted to the system super administrator.",
+            });
+        }
+
+        next();
+    } catch (error) {
+        console.error("Super admin check error:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Internal server error during authorization.",
+        });
+    }
 };
