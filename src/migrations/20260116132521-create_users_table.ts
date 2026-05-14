@@ -46,6 +46,12 @@ export default {
         defaultValue: false
       },
 
+      role: {
+        type: DataTypes.ENUM("super-admin","event-organiser","staff","student"),
+        allowNull: false,
+        defaultValue: "student"
+      },
+
       profile_picture_url: {
         type: DataTypes.TEXT,
         allowNull: true

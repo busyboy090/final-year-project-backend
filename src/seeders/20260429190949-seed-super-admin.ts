@@ -14,7 +14,8 @@ export default {
       {
         first_name: 'System',
         last_name: 'Administrator',
-        email: 'busayojosiah@gmail.com',
+        email: 'admin@adun-ems.name.ng',
+        role: "super-admin",
         password: hashedPassword,
         two_factor_enabled: true,
         email_verified: true,
@@ -23,29 +24,9 @@ export default {
         updated_at: now,
       }
     ]);
-
-    await queryInterface.bulkInsert('admin_profiles', [
-      {
-        user_id: 1,
-        is_super_admin: true,
-        faculty_id: null,
-        department_id: null,
-        created_at: now,
-        updated_at: now,
-      }
-    ]);
-
-    await queryInterface.bulkInsert("user_roles", [
-      {
-        user_id: 1,
-        role_id: 1,
-        created_at: now,
-        updated_at: now,
-      }
-    ])
   },
 
   down: async (queryInterface: QueryInterface) => {
-    await queryInterface.bulkDelete('users', { email: 'busayojosiah@gmail.com' }, {});
+    await queryInterface.bulkDelete('users', { email: 'admin@adun-ems.name.ng' }, {});
   }
 };

@@ -7,7 +7,7 @@ export const verifyTempTokenController = (type: string) => {
     return async (req: Request, res: Response) => {
         try {
             // 1. Extract the tempToken from the HTTP-only cookie
-            const tempToken = req.signedCookies.tempToken;
+            const tempToken = req.signedCookies.tempToken || req.query.token; // Also allow token in query for flexibility (e.g., email verification links)
 
             if (!tempToken) {
                 return res.status(401).json({

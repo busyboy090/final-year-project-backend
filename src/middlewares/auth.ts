@@ -1,7 +1,6 @@
 import * as jwt from './../utils/jwt.ts';
 import type { Request, Response, NextFunction } from "express";
 import db from "../models/index.ts";
-import { ProfileService } from '../services/user/profile.service.ts';
 
 export const authenticate = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -25,15 +24,7 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
     };
 
     // 2. Fetch user with all associated roles
-    const user = await db.User.findByPk(Number(decoded.userId), {
-      include: [
-        {
-          model: db.Role,
-          as: 'roles', // Using the Many-to-Many association
-          attributes: ['code',"id"],
-        }
-      ]
-    });
+    const user = await db.User.findByPk(Number(decoded.userId));
 
     if (!user) {
       return res.status(404).json({
@@ -42,39 +33,8 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
       });
     }
 
-    // 3. Extract role codes into an array
-    const userRoleCodes = user.roles?.map((r: any) => r.code) || [];
-    const userRoleIds = user.roles?.map((r: any) => r.id) || [];
-
-    // 4. Multi-Role Profile Check
-    // We check if ALL assigned roles have completed their profiles
-    const allProfilesExist = await ProfileService.checkAllUserProfiles(user.id, userRoleCodes);
-
-    /**
-     * 5. Handle Incomplete Profile
-     * Skips check if calling a completion endpoint.
-     * Note: I updated this to check for 'complete' to cover all profile types.
-     */
-    const isCompletionRoute = req.path.includes('/profile/student/complete'); 
-    
-    if (!allProfilesExist && !isCompletionRoute) {
-      return res.status(403).json({ 
-        success: false,
-        message: "Please complete your profile to continue.",
-        needsProfileCompletion: true,
-        user: {
-          id: user.id,
-          roles: userRoleCodes // Returns the array of roles
-        }
-      });
-    }
-
-    // 6. Attach full decoded payload + latest role data to request
-    req.user = {
-        ...decoded,
-        roles: userRoleCodes,
-        role_ids: userRoleIds
-    };
+    // 6. Attach full decoded payload
+    req.user = decoded;
 
     next();
   } catch (error: any) {
@@ -109,7 +69,7 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
 export const verifyTempToken = (type: string) => {
     return async (req: Request, res: Response, next: NextFunction) => {
         try {
-            const tempToken = req.signedCookies.tempToken;
+            const tempToken = req.signedCookies.tempToken || req.query.token;
 
             if (!tempToken) {
                 return res.status(401).json({

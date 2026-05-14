@@ -17,7 +17,6 @@ export class StaffProfile extends Model<InferAttributes<StaffProfile>, InferCrea
   declare staff_id: string; // Unique Employee ID
   declare faculty_id: number | null;
   declare department_id: number | null;
-  declare position: string; // e.g., Dean, HOD, Lecturer I
   declare staff_type: 'academic-staff' | 'non-academic-staff';
   declare phone: string | null;
 
@@ -91,10 +90,6 @@ export default (sequelize: Sequelize) => {
           model: 'departments',
           key: 'id'
         }
-      },
-      position: {
-        type: DataTypes.STRING,
-        allowNull: false,
       },
       staff_type: {
         type: DataTypes.ENUM('academic-staff', 'non-academic-staff'),

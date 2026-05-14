@@ -40,12 +40,6 @@ export class Department extends Model<InferAttributes<Department>, InferCreation
       foreignKey: 'department_id',
       as: 'staff'
     });
-
-    // A Department can have many admin members
-    Department.hasMany(models.AdminProfile, {
-      foreignKey: 'department_id',
-      as: 'admin'
-    });
   }
 }
 

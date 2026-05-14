@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { FacultyController } from '../controllers/faculty.controller.ts';
 import { authenticate } from '../middlewares/auth.ts';
-import { hasPermission, hasRole } from '../middlewares/role.ts';
+import { requireSuperAdmin } from '../middlewares/role.ts';
 
 const router:Router = Router();
 
@@ -33,9 +33,8 @@ router.get(
  */
 router.post(
   '/', 
-  authenticate, 
-  hasPermission('manage_structure'),
-  hasRole(['super-admin']),
+  authenticate,
+  requireSuperAdmin,
   FacultyController.createFaculty
 );
 

@@ -6,7 +6,6 @@ import type {
   CreationOptional,
   NonAttribute
 } from 'sequelize';
-import { Role } from './role.ts';
 
 export class User extends Model<InferAttributes<User>, InferCreationAttributes<User>> {
   declare id: CreationOptional<number>;
@@ -16,6 +15,7 @@ export class User extends Model<InferAttributes<User>, InferCreationAttributes<U
   declare password: string | null;
   declare email_verified: boolean;
   declare is_active: boolean;
+  declare role: "super-admin" | "event-organiser" | "staff" | "student";
   declare profile_picture_url: string | null;
   declare two_factor_secret: string | null;
   declare two_factor_enabled: boolean;
@@ -26,40 +26,25 @@ export class User extends Model<InferAttributes<User>, InferCreationAttributes<U
   declare updated_at: CreationOptional<Date>;
 
   // Associations (Virtual Fields)
-  declare roles?: NonAttribute<Role[]>; // Array of roles for multi-role support
   declare studentProfile?: NonAttribute<any>;
-  declare adminProfile?: NonAttribute<any>;
   declare staffProfile?: NonAttribute<any>;
+  declare eventOrganiserProfile?: NonAttribute<any>;
 
   static associate(models: any) {
-    // 1. Many-to-Many Association with Roles
-    User.belongsToMany(models.Role, {
-      through: models.UserRole,
-      foreignKey: 'user_id',
-      otherKey: 'role_id',
-      as: 'roles' // This allows user.roles access
-    });
-
-    // 2. Direct link to UserRole junction table (for administrative tasks)
-    User.hasMany(models.UserRole, {
-      foreignKey: 'user_id',
-      as: 'userRoles'
-    });
-
     // 3. Profile Associations (1:1)
     User.hasOne(models.StudentProfile, {
       foreignKey: 'user_id',
       as: 'studentProfile'
     });
 
-    User.hasOne(models.AdminProfile, {
-      foreignKey: 'user_id',
-      as: 'adminProfile'
-    });
-
     User.hasOne(models.StaffProfile, {
       foreignKey: 'user_id',
       as: 'staffProfile'
+    });
+
+    User.hasOne(models.EventOrganiserProfile, {
+      foreignKey: 'user_id',
+      as: 'eventOrganiserProfile'
     });
 
     // User <-> Event (Many-to-Many)
@@ -103,6 +88,11 @@ export default (sequelize: Sequelize) => {
       profile_picture_url: {
         type: DataTypes.TEXT,
         allowNull: true
+      },
+      role: {
+        type: DataTypes.ENUM("admin","organiser","staff","student"),
+        allowNull: false,
+        defaultValue: "student"
       },
       email_verified: {
         type: DataTypes.BOOLEAN,

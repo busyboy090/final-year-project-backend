@@ -4,26 +4,13 @@ import { OTPService } from "../../services/auth/otp.service.ts";
 import * as jwt from "../../utils/jwt.ts"
 import config from "../../config/env.ts";
 import { ProfileService } from "../../services/user/profile.service.ts";
-import type { UserRole } from "../../types/user.d.ts";
 
 export const verifyMfaController = async (req: Request, res: Response) => {
     try {
         const { otp } = req.body;
 
-        // 1. Find User with many-to-many Roles and their Permissions
-        const user = await db.User.findByPk(Number(req.user?.userId), {
-            include: [
-                {
-                    model: db.Role,
-                    as: 'roles',
-                    include: [{ 
-                        model: db.Permission, 
-                        as: 'permissions', 
-                        attributes: ['name'] 
-                    }]
-                }
-            ]
-        });
+        // 1. Find User
+        const user = await db.User.findByPk(Number(req.user?.userId));
 
         if (!user) {
             return res.status(404).json({
@@ -43,28 +30,15 @@ export const verifyMfaController = async (req: Request, res: Response) => {
             });
         }
 
-        // 3. Flatten Roles and Unique Permissions
-        const roleCodes = user.roles?.map((r: any) => r.code) as UserRole[] || [];
-        
-        const permissions = [...new Set(
-            user.roles?.flatMap((r: any) => r.permissions?.map((p: any) => p.name)) || []
-        )] as string[];
-
         // 4. Multi-Role Profile Completion Check
-        const allProfilesExist = await ProfileService.checkAllUserProfiles(user.id, roleCodes);
+        const profileExist = await ProfileService.checkUserProfiles(user.id, user.role);
 
-        const adminProfile = await db.AdminProfile.findOne({
-            where: { user_id: user.id },
-            attributes: ["is_super_admin"],
-        });
-        const isSuperAdminAccount = Boolean(adminProfile?.is_super_admin);
 
         // 5. Prepare Success Response & Multi-Role Tokens
         const tokenPayload = {
             userId: String(user.id),
             email: user.email,
-            roles: roleCodes,
-            permissions: permissions
+            role: user.role
         };
 
         // Clear the temp token (MFA session)
@@ -87,18 +61,16 @@ export const verifyMfaController = async (req: Request, res: Response) => {
                 first_name: user.first_name,
                 last_name: user.last_name,
                 email: user.email,
-                roles: roleCodes,
-                permissions: permissions,
+                roles: user.role,
                 email_verified: user.email_verified,
                 is_active: user.is_active,
                 two_factor_enabled: user.two_factor_enabled,
                 profile_picture_url: user.profile_picture_url,
                 created_at: user.created_at,
-                updated_at: user.updated_at,
-                is_super_admin: isSuperAdminAccount,
+                updated_at: user.updated_at
             },
             accessToken: jwt.generateAccessToken(tokenPayload),
-            ...(!allProfilesExist && { needsProfileCompletion: true })
+            ...(!profileExist && { needsProfileCompletion: true })
         });
 
     } catch (error) {

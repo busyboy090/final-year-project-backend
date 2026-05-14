@@ -9,34 +9,49 @@ import * as rateLimiter from "../middlewares/ratelimiter.ts";
 const router: Router = Router();
 
 router.get(
-    "/profile/me",
-    authMiddleware.authenticate,
-    userController.ProfileController.getMyProfile
+  "/profile/me",
+  authMiddleware.authenticate,
+  userController.ProfileController.getMyProfile,
 );
 
 router.get(
-    "/management/users",
-    authMiddleware.authenticate,
-    roleMiddleware.requireSuperAdminAccount,
-    validate(userValidators.listUsersQuerySchema),
-    userController.UserManagementController.list
+  "/management/users",
+  authMiddleware.authenticate,
+  roleMiddleware.requireSuperAdmin,
+  validate(userValidators.listUsersQuerySchema),
+  userController.UserManagementController.list,
 );
 
 router.patch(
-    "/management/users/:id",
-    authMiddleware.authenticate,
-    roleMiddleware.requireSuperAdminAccount,
-    validate(userValidators.updateUserSchema),
-    userController.UserManagementController.update
+  "/management/users/:id",
+  authMiddleware.authenticate,
+  roleMiddleware.requireSuperAdmin,
+  validate(userValidators.updateUserSchema),
+  userController.UserManagementController.update,
 );
 
 router.post(
-    "/profile/student/complete",
-    rateLimiter.authLimiter("/profile/student/complete"),
-    authMiddleware.authenticate,
-    roleMiddleware.hasRole(["student"]),
-    validate(userValidators.studentProfileSchema),
-    userController.ProfileController.completeStudentProfile
-)
+  "/profile/student/complete",
+  rateLimiter.authLimiter("/profile/student/complete"),
+  authMiddleware.authenticate,
+  roleMiddleware.hasRole(["student"]),
+  validate(userValidators.studentProfileSchema),
+  userController.ProfileController.completeStudentProfile,
+);
+
+router.post(
+  "/",
+  authMiddleware.authenticate,
+  roleMiddleware.requireSuperAdmin,
+  validate(userValidators.createUserSchema),
+  userController.UserManagementController.createUser,
+);
+
+router.patch(
+  "/set-password",
+  validate(userValidators.setPasswordSchema),
+  authMiddleware.verifyTempToken("set_password"),
+  userController.UserManagementController.setPassword,
+);
 
 export default router;

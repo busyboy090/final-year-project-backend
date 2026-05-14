@@ -1,77 +1,178 @@
 import { Op, Transaction } from "sequelize";
 import db from "../../models/index.ts";
-
-export type RegistryUserRow = {
-  id: number;
-  first_name: string | null;
-  last_name: string | null;
-  email: string;
-  profile_picture_url: string | null;
-  is_active: boolean;
-  email_verified: boolean;
-  roles: { id: number; code: string; name: string }[];
-  department_id: number | null;
-  department_name: string;
-};
-
-type ListParams = {
-  page: number;
-  limit: number;
-  search?: string;
-  role?: string;
-  department_id?: number;
-};
-
-/**
- * flattens the nested Sequelize model into a clean UI-ready object
- */
-function serializeUserRow(user: any): RegistryUserRow {
-  const roles =
-    user.roles?.map((r: any) => ({
-      id: r.id,
-      code: r.code,
-      name: r.name,
-    })) ?? [];
-
-  // Determine department from polymorphic profiles
-  let departmentName: string | null = null;
-  let departmentId: number | null = null;
-
-  const profile = user.studentProfile || user.staffProfile || user.adminProfile;
-
-  if (profile?.department) {
-    departmentName = profile.department.name;
-    departmentId = profile.department.id;
-  }
-
-  return {
-    id: user.id,
-    first_name: user.first_name,
-    last_name: user.last_name,
-    email: user.email,
-    profile_picture_url: user.profile_picture_url,
-    is_active: user.is_active,
-    email_verified: user.email_verified,
-    roles,
-    department_id: departmentId,
-    department_name: departmentName ?? "—",
-  };
-}
+import * as jwt from "../../utils/jwt.ts";
+import { sendSetPasswordEmail } from "../mail/setPassword.service.ts";
+import bcrypt from "bcrypt";
+import type {
+  ListParams,
+  CreateUserPayload,
+  CreateUserResult,
+  RegistryUserRow,
+  UpdateUserBody,
+} from "../../types/userManagement.d.ts";
+import { serializeUserRow } from "../../helpers/userManagement.helper.ts";
 
 export class UserManagementService {
-  /**
-   * Retrieves a paginated list of users with their roles and profiles
-   */
+  static async createUser(
+    payload: CreateUserPayload,
+  ): Promise<CreateUserResult> {
+    try {
+      const { first_name, last_name, email, role } = payload;
+
+      return await db.sequelize.transaction(async (t: Transaction) => {
+        const existingUser = await db.User.findOne({
+          where: { email },
+          transaction: t,
+        });
+
+        if (existingUser) {
+          return {
+            ok: false,
+            reason: "EMAIL_EXISTS",
+            message: "A user with this email already exists",
+          };
+        }
+
+        const newUser = await db.User.create(
+          {
+            first_name,
+            last_name,
+            email,
+            password: null,
+            email_verified: false,
+            is_active: true,
+            profile_picture_url: null,
+            role,
+          },
+          { transaction: t },
+        );
+
+        // ✅ create initial profile based on single role
+        // switch (role) {
+        //   case "staff":
+        //     await db.StaffProfile.create({
+        //       user_id:       newUser.id,
+        //       department_id: department_id || null,
+        //       staff_type:    staff_type    || null,
+        //     }, { transaction: t });
+        //     break;
+
+        //   case "event-organiser":
+        //     await db.EventOrganiserProfile.create(
+        //       { user_id: newUser.id },
+        //       { transaction: t },
+        //     );
+        //     break
+
+        //   // student profile created when they complete their profile
+        //   default:
+        //     break;
+        // }
+
+        const setupToken = jwt.generateTempToken(
+          { userId: newUser.id, email: newUser.email, type: "set_password" },
+          "24h",
+        );
+
+        const emailResult = await sendSetPasswordEmail({
+          to: newUser.email,
+          name: first_name.trim(),
+          token: setupToken,
+        });
+
+        if (!emailResult.success) {
+          console.warn(
+            "Failed to send password setup email for user:",
+            newUser.id,
+          );
+          return {
+            ok: true,
+            reason: "EMAIL_SEND_FAILED",
+            user: {
+              id: newUser.id,
+              first_name: newUser.first_name,
+              last_name: newUser.last_name,
+              email: newUser.email,
+              role: newUser.role,
+            },
+            message: "User created, but password setup email could not be sent",
+          };
+        }
+
+        return {
+          ok: true,
+          user: {
+            id: newUser.id,
+            first_name: newUser.first_name,
+            last_name: newUser.last_name,
+            email: newUser.email,
+            role: newUser.role,
+          },
+          message: "User created successfully. Password setup email sent.",
+        };
+      });
+    } catch (error) {
+      console.error("CREATE_USER_SERVICE_ERROR:", error);
+      return {
+        ok: false,
+        reason: "SERVER_ERROR",
+        message: "An error occurred while creating the user",
+      };
+    }
+  }
+
+  static async setPassword(
+    userId: number,
+    newPassword: string,
+  ): Promise<CreateUserResult> {
+    try {
+      if (!newPassword || newPassword.length < 8) {
+        return {
+          ok: false,
+          reason: "WEAK_PASSWORD",
+          message: "Password must be at least 8 characters long",
+        };
+      }
+
+      return await db.sequelize.transaction(async (t: Transaction) => {
+        const user = await db.User.findByPk(userId, { transaction: t });
+        if (!user)
+          return {
+            ok: false,
+            reason: "USER_NOT_FOUND",
+            message: "User not found",
+          };
+
+        const hashedPassword = await bcrypt.hash(newPassword, 12);
+        await user.update(
+          { password: hashedPassword, email_verified: true },
+          { transaction: t },
+        );
+
+        return {
+          ok: true,
+          message:
+            "Password set successfully. You can now complete your profile.",
+        };
+      });
+    } catch (error) {
+      console.error("SET_PASSWORD_SERVICE_ERROR:", error);
+      return {
+        ok: false,
+        reason: "SERVER_ERROR",
+        message: "An error occurred while setting password",
+      };
+    }
+  }
+
   static async list(params: ListParams): Promise<{
     data: RegistryUserRow[];
     meta: { page: number; limit: number; total: number; totalPages: number };
   }> {
     const { page, limit, search, role, department_id: departmentId } = params;
     const offset = (page - 1) * limit;
-
     const where: any = {};
 
-    // 1. Handle Global Search
     if (search?.trim()) {
       const term = `%${search.trim()}%`;
       where[Op.or] = [
@@ -81,69 +182,68 @@ export class UserManagementService {
       ];
     }
 
-    // 2. Handle Role Filtering
-    const roleInclude: any = {
-      model: db.Role,
-      as: "roles",
-      through: { attributes: [] },
-      attributes: ["id", "code", "name"],
-    };
-
+    // ✅ role is just a column filter like any other
     if (role && role !== "all") {
-      roleInclude.where = { code: role };
-      roleInclude.required = true; // Changes to INNER JOIN to filter by role
+      where.role = role;
     }
 
-    // 3. Department Filtering Logic
-    // If a departmentId is provided, we filter across all three profile types
-    const departmentWhere = departmentId ? { department_id: departmentId } : undefined;
+    const departmentWhere = departmentId
+      ? { department_id: departmentId }
+      : undefined;
 
     const { rows, count } = await db.User.findAndCountAll({
       where,
       distinct: true,
-      col: "id", 
+      col: "id",
       limit,
       offset,
       order: [["created_at", "DESC"]],
       subQuery: false,
       include: [
-        roleInclude,
         {
           model: db.StudentProfile,
           as: "studentProfile",
           attributes: ["department_id"],
           where: departmentWhere,
           required: false,
-          include: [{ model: db.Department, as: "department", attributes: ["id", "name"] }],
+          include: [
+            {
+              model: db.Department,
+              as: "department",
+              attributes: ["id", "name"],
+            },
+          ],
         },
         {
           model: db.StaffProfile,
           as: "staffProfile",
-          attributes: ["department_id"],
+          attributes: ["department_id", "staff_type"],
           where: departmentWhere,
           required: false,
-          include: [{ model: db.Department, as: "department", attributes: ["id", "name"] }],
+          include: [
+            {
+              model: db.Department,
+              as: "department",
+              attributes: ["id", "name"],
+            },
+          ],
         },
         {
-          model: db.AdminProfile,
-          as: "adminProfile",
-          attributes: ["department_id"],
-          where: departmentWhere,
+          model: db.EventOrganiserProfile,
+          as: "eventOrganiserProfile",
           required: false,
-          include: [{ model: db.Department, as: "department", attributes: ["id", "name"] }],
         },
       ],
     });
 
-    // 4. Post-fetch Filtering (Sequelize limitation with OR across multiple includes)
-    // If filtering by department, we must ensure the user has at least one of the profiles
     let finalRows = rows;
     if (departmentId) {
-      finalRows = rows.filter((u:any) => u.studentProfile || u.staffProfile || u.adminProfile);
+      finalRows = rows.filter((u: any) => u.studentProfile || u.staffProfile);
     }
 
     const data = finalRows.map((u: any) => serializeUserRow(u));
-    const total = typeof count === "number" ? count : (count as any).length || 0;
+    const total =
+      typeof count === "number" ? count : (count as any).length || 0;
 
     return {
       data,
@@ -156,15 +256,11 @@ export class UserManagementService {
     };
   }
 
-  /**
-   * Updates basic user info and handles constraints
-   */
   static async updateUser(
     targetUserId: number,
     actorUserId: number,
-    body: { first_name?: string; last_name?: string; email?: string; is_active?: boolean }
+    body: UpdateUserBody,
   ): Promise<RegistryUserRow> {
-    // Prevent self-deactivation
     if (targetUserId === actorUserId && body.is_active === false) {
       throw new Error("SELF_DEACTIVATE");
     }
@@ -173,13 +269,12 @@ export class UserManagementService {
       const user = await db.User.findByPk(targetUserId, { transaction: t });
       if (!user) throw new Error("NOT_FOUND");
 
-      // Email uniqueness check
       if (body.email) {
         const normalized = body.email.trim().toLowerCase();
         if (normalized !== user.email) {
-          const existing = await db.User.findOne({ 
+          const existing = await db.User.findOne({
             where: { email: normalized },
-            transaction: t 
+            transaction: t,
           });
           if (existing) throw new Error("EMAIL_TAKEN");
         }
@@ -188,7 +283,8 @@ export class UserManagementService {
       const updates: any = {};
       if (body.first_name !== undefined) updates.first_name = body.first_name;
       if (body.last_name !== undefined) updates.last_name = body.last_name;
-      if (body.email !== undefined) updates.email = body.email.trim().toLowerCase();
+      if (body.email !== undefined)
+        updates.email = body.email.trim().toLowerCase();
       if (body.is_active !== undefined) updates.is_active = body.is_active;
 
       await user.update(updates, { transaction: t });
@@ -197,26 +293,28 @@ export class UserManagementService {
         transaction: t,
         include: [
           {
-            model: db.Role,
-            as: "roles",
-            through: { attributes: [] },
-            attributes: ["id", "code", "name"],
-          },
-          {
             model: db.StudentProfile,
             as: "studentProfile",
-            include: [{ model: db.Department, as: "department", attributes: ["id", "name"] }],
+            include: [
+              {
+                model: db.Department,
+                as: "department",
+                attributes: ["id", "name"],
+              },
+            ],
           },
           {
             model: db.StaffProfile,
             as: "staffProfile",
-            include: [{ model: db.Department, as: "department", attributes: ["id", "name"] }],
+            include: [
+              {
+                model: db.Department,
+                as: "department",
+                attributes: ["id", "name"],
+              },
+            ],
           },
-          {
-            model: db.AdminProfile,
-            as: "adminProfile",
-            include: [{ model: db.Department, as: "department", attributes: ["id", "name"] }],
-          },
+          { model: db.EventOrganiserProfile, as: "eventOrganiserProfile" }
         ],
       });
 

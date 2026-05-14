@@ -4,6 +4,7 @@ import type { Request, Response } from "express";
 
 // Local Modules
 import AuthRoutes from "./auth.route.ts";
+import AdminRoutes from "./admin.route.ts";
 import UserRoutes from "./user.route.ts";
 import LevelRoutes from "./level.route.ts";
 import DepartmentRoutes from "./department.route.ts";
@@ -12,7 +13,7 @@ import EventRoutes from "./event/event.route.ts";
 import FacultyRoutes from "./faculty.route.ts";
 import FacilityRoutes from "./facility.route.ts";
 
-const router: Router  = Router();
+const router: Router = Router();
 
 // Routes
 /**
@@ -37,32 +38,35 @@ const router: Router  = Router();
  *       500:
  *         description: Failed to generate CSRF token.
  */
-router.get('/csrf-token', (req: Request, res: Response) => {
-    res.status(200).json({ csrfToken: req.csrfToken() })
+router.get("/csrf-token", (req: Request, res: Response) => {
+  res.status(200).json({ csrfToken: req.csrfToken() });
 });
 
 // Auth Routes
-router.use('/auth', AuthRoutes)
+router.use("/auth", AuthRoutes);
+
+// Admin Routes
+router.use("/admin", AdminRoutes);
 
 // User Routes
-router.use("/user", UserRoutes)
+router.use("/user", UserRoutes);
 
 // Levels Routes
-router.use("/levels", LevelRoutes)
+router.use("/levels", LevelRoutes);
 
 // Departments Routes
-router.use("/departments", DepartmentRoutes)
+router.use("/departments", DepartmentRoutes);
 
 // Venue Routes
-router.use("/venues", VenueRoutes)
+router.use("/venues", VenueRoutes);
 
 // Event Routes
-router.use("/events", EventRoutes)
+router.use("/events", EventRoutes);
 
 // Faculty Routes
-router.use("/faculties", FacultyRoutes)
+router.use("/faculties", FacultyRoutes);
 
 // Facility Routes
-router.use("/facilities", FacilityRoutes)
+router.use("/facilities", FacilityRoutes);
 
 export default router;

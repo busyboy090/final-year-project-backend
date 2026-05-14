@@ -7,7 +7,6 @@ import type {
   NonAttribute
 } from 'sequelize';
 import { Department } from './department.ts';
-import { AdminProfile } from './admin_profile.ts';
 import { StaffProfile } from "./staff_profile.ts"
 
 export class Faculty extends Model<InferAttributes<Faculty>, InferCreationAttributes<Faculty>> {
@@ -21,18 +20,12 @@ export class Faculty extends Model<InferAttributes<Faculty>, InferCreationAttrib
 
   // Associations
   declare departments?: NonAttribute<Department[]>;
-  declare admin?: NonAttribute<AdminProfile[]>;
   declare staff?: NonAttribute<StaffProfile[]>;
 
   static associate(models: any) {
     Faculty.hasMany(models.Department, {
       foreignKey: 'faculty_id',
       as: 'departments'
-    });
-
-    Faculty.hasMany(models.AdminProfile, {
-      foreignKey: 'faculty_id',
-      as: 'admin'
     });
 
     Faculty.hasMany(models.StaffProfile, {

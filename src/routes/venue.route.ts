@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { VenueController } from '../controllers/venue.controller.ts';
 import { authenticate } from '../middlewares/auth.ts';
-import { hasPermission, hasRole } from '../middlewares/role.ts';
+import { requireSuperAdmin } from '../middlewares/role.ts';
 import { upload } from '../config/multer.ts';
 import { validate } from '../middlewares/validate.ts';
 import { createVenueSchema, updateVenueSchema } from '../validators/venue.schema.ts';
@@ -18,8 +18,7 @@ router.get('/:id', authenticate, VenueController.getVenue);
 router.post(
   '/', 
   authenticate, 
-  hasPermission('manage_structure'), 
-  hasRole(['super-admin']), 
+  requireSuperAdmin,
   upload.fields([{ name: 'thumbnail', maxCount: 1 }, { name: 'images', maxCount: 10 }]),
   validate(createVenueSchema),
   VenueController.createVenue
@@ -28,8 +27,7 @@ router.post(
 router.put(
   '/:id', 
   authenticate, 
-  hasPermission('manage_structure'), 
-  hasRole(['super-admin']), 
+  requireSuperAdmin,
   upload.fields([{ name: 'thumbnail', maxCount: 1 }, { name: 'images', maxCount: 10 }]),
   validate(updateVenueSchema),
   VenueController.updateVenue

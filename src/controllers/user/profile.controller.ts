@@ -4,43 +4,31 @@ import type { UserRole } from "../../types/user.d.ts";
 
 export class ProfileController {
   /**
-   * 
-   * Fetches the flattened profile based on a specific role or the primary role.
+   * GET /api/v1/profile
+   * Fetches the flattened profile for the authenticated user's role.
    */
   static async getMyProfile(req: Request, res: Response) {
     try {
       const userId = Number(req.user?.userId);
-      
-      /**
-       * 1. Multi-role handling: 
-       * We take the role from the URL parameter if provided (e.g., /profile/staff),
-       * otherwise, we default to the first role in the user's roles array.
-       */
-      const requestedRole = req.params.role as UserRole;
-      const userRoles = req.user?.roles || [];
-      
-      const roleToFetch = requestedRole || userRoles[0];
+      const role   = req.user?.role as UserRole;
 
-      if (!roleToFetch) {
+      if (!role) {
         return res.status(400).json({
           success: false,
-          message: "No valid role identified for profile fetching",
+          message: "No role identified for profile fetching",
         });
       }
 
-      const profile = await ProfileService.getFlattenedUserProfile(userId, roleToFetch);
+      const profile = await ProfileService.getFlattenedUserProfile(userId, role);
 
       if (!profile) {
         return res.status(404).json({
           success: false,
-          message: `Profile data for role '${roleToFetch}' not found`,
+          message: `Profile not found`,
         });
       }
 
-      return res.status(200).json({
-        success: true,
-        data: profile,
-      });
+      return res.status(200).json({ success: true, data: profile });
     } catch (error: any) {
       console.error("GET_PROFILE_ERROR:", error);
       return res.status(500).json({
@@ -52,19 +40,16 @@ export class ProfileController {
 
   /**
    * PUT /api/v1/profile/student/complete
-   * Updates student personal info and academic profile.
    */
   static async completeStudentProfile(req: Request, res: Response) {
     try {
-      const userId = Number(req.user?.userId);
-      
-      // Atomic update for User names and StudentProfile table
+      const userId       = Number(req.user?.userId);
       const updatedProfile = await ProfileService.updateStudentProfile(userId, req.body);
 
       return res.status(200).json({
         success: true,
         message: "Student profile updated successfully",
-        data: updatedProfile,
+        data:    updatedProfile,
       });
     } catch (error: any) {
       console.error("UPDATE_STUDENT_PROFILE_ERROR:", error);
@@ -76,8 +61,73 @@ export class ProfileController {
   }
 
   /**
+   * PUT /api/v1/profile/staff/complete
+   */
+  static async completeStaffProfile(req: Request, res: Response) {
+    try {
+      const userId         = Number(req.user?.userId);
+      const updatedProfile = await ProfileService.updateStaffProfile(userId, req.body);
+
+      return res.status(200).json({
+        success: true,
+        message: "Staff profile updated successfully",
+        data:    updatedProfile,
+      });
+    } catch (error: any) {
+      console.error("UPDATE_STAFF_PROFILE_ERROR:", error);
+      return res.status(error.message === "User not found" ? 404 : 500).json({
+        success: false,
+        message: error.message || "Failed to update staff profile",
+      });
+    }
+  }
+
+  /**
+   * PUT /api/v1/profile/event-organiser/complete
+   */
+  static async completeEventOrganiserProfile(req: Request, res: Response) {
+    try {
+      const userId         = Number(req.user?.userId);
+      const updatedProfile = await ProfileService.updateEventOrganiserProfile(userId, req.body);
+
+      return res.status(200).json({
+        success: true,
+        message: "Event organiser profile updated successfully",
+        data:    updatedProfile,
+      });
+    } catch (error: any) {
+      console.error("UPDATE_EVENT_ORGANISER_PROFILE_ERROR:", error);
+      return res.status(error.message === "User not found" ? 404 : 500).json({
+        success: false,
+        message: error.message || "Failed to update event organiser profile",
+      });
+    }
+  }
+
+  // /**
+  //  * PUT /api/v1/profile/admin/complete
+  //  */
+  // static async completeAdminProfile(req: Request, res: Response) {
+  //   try {
+  //     const userId         = Number(req.user?.userId);
+  //     const updatedProfile = await ProfileService.updateAdminProfile(userId, req.body);
+
+  //     return res.status(200).json({
+  //       success: true,
+  //       message: "Admin profile updated successfully",
+  //       data:    updatedProfile,
+  //     });
+  //   } catch (error: any) {
+  //     console.error("UPDATE_ADMIN_PROFILE_ERROR:", error);
+  //     return res.status(error.message === "User not found" ? 404 : 500).json({
+  //       success: false,
+  //       message: error.message || "Failed to update admin profile",
+  //     });
+  //   }
+  // }
+
+  /**
    * PATCH /api/v1/profile/avatar
-   * Centralized update for the profile picture URL.
    */
   static async updateAvatar(req: Request, res: Response) {
     try {
@@ -96,7 +146,7 @@ export class ProfileController {
       return res.status(200).json({
         success: true,
         message: "Profile picture updated successfully",
-        data: result,
+        data:    result,
       });
     } catch (error: any) {
       console.error("UPDATE_AVATAR_ERROR:", error);

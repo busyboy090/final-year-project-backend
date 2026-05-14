@@ -61,11 +61,6 @@ export default {
         onUpdate: "CASCADE"
       },
 
-      position: {
-        type: DataTypes.STRING,
-        allowNull: false
-      },
-
       staff_type: {
         type: DataTypes.ENUM("academic-staff","non-academic-staff"),
         allowNull: false

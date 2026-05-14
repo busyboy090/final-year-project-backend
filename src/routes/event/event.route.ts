@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { EventController } from '../../controllers/event/create.controller.ts';
 import { authenticate } from '../../middlewares/auth.ts';
-import { hasPermission, hasRole } from '../../middlewares/role.ts';
+import { hasRole } from '../../middlewares/role.ts';
 import EnrollmentRoutes from './enrollment.route.ts';
 
 const router:Router = Router();
@@ -23,7 +23,7 @@ router.get(
 router.post(
   '/', 
   authenticate, 
-  hasPermission('create_events'), 
+  hasRole(["event-organiser", "super-admin"]), 
   EventController.create
 );
 
@@ -34,7 +34,6 @@ router.post(
 router.patch(
   '/:id', 
   authenticate, 
-  hasPermission('approve_events'), 
   hasRole(['super-admin']),
   EventController.update
 );

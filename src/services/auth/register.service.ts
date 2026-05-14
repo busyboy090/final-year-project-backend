@@ -5,7 +5,7 @@ import { sendEmailVerification } from "../mail/emailVerification.service.ts";
 import { OTPService } from "./otp.service.ts";
 import { generateTempToken } from "../../utils/jwt.ts";
 import * as format from "../../utils/format.ts";
-import type { PublicUser, UserRole } from "../../types/user.d.ts";
+import type { PublicUser } from "../../types/user.d.ts";
 
 type RegisterUserResult = {
   ok: boolean;
@@ -20,10 +20,6 @@ type RegisterUserResult = {
 export const registerUser = async (
   payload: RegisterUserInput & { role?: string | string[] }
 ): Promise<RegisterUserResult> => {
-  // 1. Pre-check: Ensure roles are normalized and not empty
-  const rawRoles = payload.role || "student";
-  const targetRoleCodes = Array.isArray(rawRoles) ? rawRoles : [rawRoles];
-
   const transaction = await db.sequelize.transaction();
 
   try {
@@ -32,23 +28,6 @@ export const registerUser = async (
     if (existingUser) {
       await transaction.rollback();
       return { ok: false, reason: "EMAIL_EXISTS" };
-    }
-
-    // 3. Resolve Roles with explicit typing to avoid 'any' errors
-    const roleRecords = await db.Role.findAll({ 
-      where: { code: targetRoleCodes },
-      include: [{ 
-        model: db.Permission, 
-        as: 'permissions', 
-        attributes: ['name'],
-        through: { attributes: [] } // Cleans up the nested response
-      }],
-      transaction 
-    });
-
-    if (roleRecords.length === 0) {
-      await transaction.rollback();
-      return { ok: false, reason: "INVALID_ROLE" };
     }
 
     const hashedPassword = await bcrypt.hash(payload.password, 12);
@@ -60,16 +39,9 @@ export const registerUser = async (
       email: payload.email,
       password: hashedPassword,
       email_verified: false,
+      role: "student",
       is_active: true
     }, { transaction });
-
-    // 5. Create UserRole Links
-    const userRoleLinks = roleRecords.map((role:any) => ({
-      user_id: createdUser.id,
-      role_id: role.id
-    }));
-
-    await db.UserRole.bulkCreate(userRoleLinks, { transaction });
 
     // 6. OTP Generation - Handle potential nulls safely
     const otpResult = await OTPService.generateOTP(createdUser.email, "email_verification");
@@ -91,12 +63,6 @@ export const registerUser = async (
       return { ok: false, reason: "VERIFICATION_EMAIL_SEND_FAILED" };
     }
 
-    // 7. Extracting flattened data safely
-    const roleCodes = roleRecords.map((r:any) => r.code as UserRole);
-    const permissions = [...new Set(
-      roleRecords.flatMap((r:any) => r.permissions?.map((p: any) => p.name) || [])
-    )] as string[];
-
     // 8. Commit the transaction
     await transaction.commit();
 
@@ -108,8 +74,7 @@ export const registerUser = async (
         last_name: createdUser.last_name,
         email: createdUser.email,
         email_verified: createdUser.email_verified,
-        roles: roleCodes,
-        permissions: permissions,
+        role: createdUser.role,
         two_factor_enabled: createdUser.two_factor_enabled,
         profile_picture_url: createdUser.profile_picture_url,
         is_active: createdUser.is_active,

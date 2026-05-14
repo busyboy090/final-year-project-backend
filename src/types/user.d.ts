@@ -1,20 +1,9 @@
 export type UserRole = 
   | "super-admin" 
-  | "faculty-admin" 
-  | "student-affairs" 
-  | "department-admin" 
-  | "event-organiser" 
+  | "event-organiser"
   | "staff" 
-  | "src-exec" 
   | "student";
 
-/**
- * Represents the structure of a permission as it comes from the DB
- */
-export type UserPermission = {
-  name: string;   // e.g., 'create_event'
-  module: string; // e.g., 'events'
-};
 
 export type PublicUser = {
   id: number;
@@ -23,10 +12,7 @@ export type PublicUser = {
   email: string;
   
   // Transitioned to support multiple roles
-  roles: UserRole[]; 
-  
-  // Flattened permissions for easy frontend checks
-  permissions: string[]; 
+  role: UserRole; 
   
   email_verified: boolean;
   is_active: boolean;
@@ -34,7 +20,4 @@ export type PublicUser = {
   profile_picture_url: string | null;
   created_at: Date;
   updated_at: Date;
-
-  /** True when this user has an admin profile flagged as system super administrator */
-  is_super_admin?: boolean;
 };

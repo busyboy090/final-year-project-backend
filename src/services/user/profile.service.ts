@@ -2,128 +2,153 @@ import db from "../../models/index.ts";
 import type { UserRole } from "../../types/user.d.ts";
 
 export class ProfileService {
-    /**
-     * Retrieves the full profile of a user based on a specific role.
-     * This handles conditional fetching from student, staff, or admin tables.
-     */
-    static async getFlattenedUserProfile(userId: number, role: UserRole) {
-        const includeOptions: any[] = [];
+  static async getFlattenedUserProfile(userId: number, role: UserRole) {
+    const includeOptions: any[] = [];
 
-        if (role === 'student') {
-            includeOptions.push({
-                model: db.StudentProfile,
-                as: 'studentProfile',
-                include: [
-                    { model: db.Department, as: 'department' },
-                    { model: db.Level, as: 'level' }
-                ]
-            });
-        } else if (role === 'staff' || role === 'event-organiser') {
-            includeOptions.push({
-                model: db.StaffProfile,
-                as: 'staffProfile',
-                include: [
-                    { model: db.Faculty, as: 'faculty' },
-                    { model: db.Department, as: 'department' }
-                ]
-            });
-        } else if (['super-admin', 'faculty-admin', 'department-admin', 'src-exec'].includes(role)) {
-            includeOptions.push({
-                model: db.AdminProfile,
-                as: 'adminProfile'
-            });
-        }
-
-        const user = await db.User.findByPk(userId, {
-            include: includeOptions,
-            attributes: { exclude: ['password', 'two_factor_secret', 'two_factor_recovery_codes'] }
-        });
-
-        if (!user) return null;
-
-        const userPlain = user.get({ plain: true });
-        const profileData = userPlain.studentProfile || userPlain.staffProfile || userPlain.adminProfile || {};
-
-        delete userPlain.studentProfile;
-        delete userPlain.staffProfile;
-        delete userPlain.adminProfile;
-
-        return { ...userPlain, ...profileData };
+    if (role === "student") {
+      includeOptions.push({
+        model: db.StudentProfile,
+        as:    "studentProfile",
+        include: [
+          { model: db.Department, as: "department" },
+          { model: db.Level,      as: "level" },
+        ],
+      });
+    } else if (role === "staff") {
+      includeOptions.push({
+        model: db.StaffProfile,
+        as:    "staffProfile",
+        include: [
+          { model: db.Faculty,     as: "faculty" },
+          { model: db.Department,  as: "department" },
+        ],
+      });
+    } else if (role === "event-organiser") {
+      includeOptions.push({
+        model: db.EventOrganiserProfile,
+        as:    "eventOrganiserProfile",
+      });
     }
 
-    /**
-     * Checks if all assigned roles have their corresponding profile records.
-     * Returns true only if every role that requires a profile has one.
-     */
-    static async checkAllUserProfiles(userId: number, roles: string[]): Promise<boolean> {
-        if (!roles || roles.length === 0) return false;
+    const user = await db.User.findByPk(userId, {
+      include:    includeOptions,
+      attributes: {
+        exclude: ["password", "two_factor_secret", "two_factor_recovery_codes"],
+      },
+    });
 
-        const profileChecks = await Promise.all(roles.map(async (role) => {
-            let profile = null;
+    if (!user) return null;
 
-            switch (role) {
-                case 'student':
-                    profile = await db.StudentProfile.findOne({ where: { user_id: userId }, attributes: ['id'] });
-                    break;
-                case 'staff':
-                case 'event-organiser':
-                    profile = await db.StaffProfile.findOne({ where: { user_id: userId }, attributes: ['id'] });
-                    break;
-                case 'super-admin':
-                case 'faculty-admin':
-                case 'department-admin':
-                case 'src-exec':
-                    profile = await db.AdminProfile.findOne({ where: { user_id: userId }, attributes: ['id'] });
-                    break;
-                default:
-                    // Roles that don't require an extra profile table are auto-verified
-                    return true;
-            }
-            return !!profile;
+    const userPlain = user.get({ plain: true });
+    const profileData =
+      userPlain.studentProfile        ||
+      userPlain.staffProfile          ||
+      userPlain.eventOrganiserProfile ;
+      {};
+
+    delete userPlain.studentProfile;
+    delete userPlain.staffProfile;
+    delete userPlain.eventOrganiserProfile;
+
+    let needsProfileCompletion = false;
+
+    switch (role) {
+      case "student":
+        needsProfileCompletion = !profileData?.matric_no;
+        break;
+      case "staff":
+        needsProfileCompletion = !profileData?.staff_id;
+        break;
+      case "event-organiser":
+        needsProfileCompletion = !profileData?.organiser_id;
+        break;
+    }
+
+    return { ...userPlain, ...profileData, needsProfileCompletion };
+  }
+
+  static async checkUserProfiles(userId: number, role: UserRole): Promise<boolean> {
+    switch (role) {
+      case "student":
+        return !!(await db.StudentProfile.findOne({
+          where: { user_id: userId }, attributes: ["id"],
         }));
-
-        return profileChecks.every(exists => exists === true);
+      case "staff":
+        return !!(await db.StaffProfile.findOne({
+          where: { user_id: userId }, attributes: ["id"],
+        }));
+      case "event-organiser":
+        return !!(await db.EventOrganiserProfile.findOne({
+          where: { user_id: userId }, attributes: ["id"],
+        }));
+      default:
+        return true;
     }
+  }
 
-    /**
-     * Atomic update for User and StudentProfile data.
-     */
-    static async updateStudentProfile(userId: number, data: any) {
-        const transaction = await db.sequelize.transaction();
-        try {
-            const { first_name, last_name, ...profileData } = data;
-            const user = await db.User.findByPk(userId, { transaction });
-            if (!user) throw new Error("User not found");
+  // ✅ shared private helper — all three update methods were identical except model + role
+  private static async upsertProfile(
+    userId:    number,
+    role:      UserRole,
+    model:     any,
+    data:      any,
+  ) {
+    const transaction = await db.sequelize.transaction();
+    try {
+      const { first_name, last_name, ...profileData } = data;
+      const user = await db.User.findByPk(userId, { transaction });
+      if (!user) throw new Error("User not found");
 
-            if (first_name || last_name) {
-                const updateObj: any = {};
-                if (first_name) updateObj.first_name = first_name;
-                if (last_name) updateObj.last_name = last_name;
-                await user.update(updateObj, { transaction });
-            }
+      if (first_name || last_name) {
+        const updateObj: any = {};
+        if (first_name) updateObj.first_name = first_name;
+        if (last_name)  updateObj.last_name  = last_name;
+        await user.update(updateObj, { transaction });
+      }
 
-            const [profile, created] = await db.StudentProfile.findOrCreate({
-                where: { user_id: userId },
-                defaults: { ...profileData, user_id: userId },
-                transaction
-            });
+      if(user.role === "super-admin") {
+        await transaction.commit();
+        return await this.getFlattenedUserProfile(userId, role);
+      }
 
-            if (!created) await profile.update(profileData, { transaction });
+      const [profile, created] = await model.findOrCreate({
+        where:    { user_id: userId },
+        defaults: { ...profileData, user_id: userId },
+        transaction,
+      });
 
-            await transaction.commit();
-            return await this.getFlattenedUserProfile(userId, 'student');
-        } catch (error) {
-            await transaction.rollback();
-            throw error;
-        }
+      if (!created) await profile.update(profileData, { transaction });
+
+      await transaction.commit();
+      return await this.getFlattenedUserProfile(userId, role);
+    } catch (error) {
+      await transaction.rollback();
+      throw error;
     }
+  }
 
-    static async updateAvatar(userId: number, url: string) {
-        const [affectedCount] = await db.User.update(
-            { profile_picture_url: url },
-            { where: { id: userId } }
-        );
-        if (affectedCount === 0) throw new Error("User not found.");
-        return { success: true, url };
-    }
+  static async updateStudentProfile(userId: number, data: any) {
+    return this.upsertProfile(userId, "student", db.StudentProfile, data);
+  }
+
+  static async updateStaffProfile(userId: number, data: any) {
+    return this.upsertProfile(userId, "staff", db.StaffProfile, data);
+  }
+
+  static async updateEventOrganiserProfile(userId: number, data: any) {
+    return this.upsertProfile(userId, "event-organiser", db.EventOrganiserProfile, data);
+  }
+
+  static async updateAdminProfile(userId: number, data: any) {
+    return this.upsertProfile(userId, "super-admin", null, data);
+  }
+
+  static async updateAvatar(userId: number, url: string) {
+    const [affectedCount] = await db.User.update(
+      { profile_picture_url: url },
+      { where: { id: userId } },
+    );
+    if (affectedCount === 0) throw new Error("User not found.");
+    return { success: true, url };
+  }
 }

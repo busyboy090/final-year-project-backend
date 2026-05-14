@@ -1,13 +1,12 @@
 import { Router } from "express";
 import type { Request, Response } from "express";
-import * as authControllers  from "../controllers/auth/index.ts";
+import * as authControllers from "../controllers/auth/index.ts";
 import { authLimiter } from "../middlewares/ratelimiter.ts";
 import { validate } from "../middlewares/validate.ts";
 import * as authSchema from "../validators/auth/index.ts";
 import * as authMiddleware from "../middlewares/auth.ts";
 
 const router: Router = Router();
-
 
 /**
  * @swagger
@@ -32,10 +31,9 @@ const router: Router = Router();
  *         description: Failed to generate CSRF token.
  */
 
-router.get('/csrf-token', (req: Request, res: Response) => {
-  res.status(200).json({ csrfToken: req.csrfToken() })
+router.get("/csrf-token", (req: Request, res: Response) => {
+  res.status(200).json({ csrfToken: req.csrfToken() });
 });
-
 
 /**
  * @swagger
@@ -130,10 +128,11 @@ router.get('/csrf-token', (req: Request, res: Response) => {
  *             schema:
  *               $ref: '#/components/schemas/ErrorMessage'
  */
-router.post("/register",
-    validate(authSchema.registerUserSchema),
-    authLimiter("register"),
-    authControllers.registerController
+router.post(
+  "/register",
+  validate(authSchema.registerUserSchema),
+  authLimiter("register"),
+  authControllers.registerController,
 );
 
 /**
@@ -225,7 +224,7 @@ router.post(
   "/login",
   validate(authSchema.loginUserSchema),
   authLimiter("login"),
-  authControllers.loginController
+  authControllers.loginController,
 );
 
 router.patch(
@@ -233,57 +232,45 @@ router.patch(
   validate(authSchema.otpSchema),
   authLimiter("/verify-email"),
   authMiddleware.verifyTempToken("email_verification"),
-  authControllers.emailVerificationController
+  authControllers.emailVerificationController,
 );
 
-router.get(
-  "/refresh-token",
-  authControllers.generateNewAccessToken
-)
+router.post("/refresh-token", authControllers.generateNewAccessToken);
+
+router.post("/logout", authControllers.logoutController);
 
 router.post(
-  "/logout",
-  authControllers.logoutController
-)
-
-router.get(
   "/verify-email/session",
-  authControllers.verifyTempTokenController("email_verification")
+  authControllers.verifyTempTokenController("email_verification"),
 );
 
 router.post(
   "/verify-email/resend-otp",
   authLimiter("/verify-email/resend-otp"),
   authMiddleware.verifyTempToken("email_verification"),
-  authControllers.resendOtpController("email_verification")
-)
+  authControllers.resendOtpController("email_verification"),
+);
 
-router.get(
-  "/session",
-  authControllers.isAuthenticatedController
-)
+router.post("/session", authControllers.isAuthenticatedController);
 
 // Multi-Factor Authentication route
 
-router.get(
-  "/mfa/session",
-  authControllers.verifyTempTokenController("mfa")
-);
+router.post("/mfa/session", authControllers.verifyTempTokenController("mfa"));
 
 router.post(
   "/verify-mfa",
   validate(authSchema.otpSchema),
   authLimiter("/verify-mfa"),
   authMiddleware.verifyTempToken("mfa"),
-  authControllers.verifyMfaController
+  authControllers.verifyMfaController,
 );
 
 router.post(
   "/mfa/resend-otp",
   authLimiter("/mfa/resend-otp"),
   authMiddleware.verifyTempToken("mfa"),
-  authControllers.resendOtpController("mfa")
-)
+  authControllers.resendOtpController("mfa"),
+);
 
 router.post("/clear-temp-token", authControllers.clearTempTokenController);
 
@@ -292,41 +279,46 @@ router.post(
   "/reset-password/request",
   validate(authSchema.emailSchema),
   authLimiter("/reset-password/request"),
-  authControllers.requestResetPasswordController
-)
+  authControllers.requestResetPasswordController,
+);
 
 router.post(
   "/reset-password/verify",
   validate(authSchema.verifyResetPasswordOTPSchema),
   authLimiter("/reset-password/verify"),
-  authControllers.verifyResetPasswordOTPController
-)
+  authControllers.verifyResetPasswordOTPController,
+);
 
 router.patch(
   "/reset-password",
   authMiddleware.verifyTempToken("password_reset"),
   validate(authSchema.resetPasswordSchema),
   authLimiter("/reset-password"),
-  authControllers.resetPasswordController
-)
+  authControllers.resetPasswordController,
+);
 
 router.patch(
   "/reset-password/resend-otp",
   authLimiter("/reset-password/resend-otp"),
-  authControllers.resendOtpController("password_reset")
-)
+  authControllers.resendOtpController("password_reset"),
+);
 
-router.get(
+router.post(
   "/reset-password/session",
-  authControllers.verifyTempTokenController("password_reset")
-)
+  authControllers.verifyTempTokenController("password_reset"),
+);
+
+router.post(
+  "/set-password/session",
+  authControllers.verifyTempTokenController("set_password"),
+);
 
 // update 2fa
 router.patch(
-  "/2fa-toggle", 
-  authMiddleware.authenticate, 
-  validate(authSchema.toggle2FASchema), 
-  authControllers.TwoFAController.toggle
+  "/2fa-toggle",
+  authMiddleware.authenticate,
+  validate(authSchema.toggle2FASchema),
+  authControllers.TwoFAController.toggle,
 );
 
 export default router;
