@@ -1,13 +1,17 @@
-import { Model, DataTypes } from 'sequelize';
+import { Model, DataTypes } from "sequelize";
 import type {
   Sequelize,
   InferAttributes,
   InferCreationAttributes,
   CreationOptional,
-  NonAttribute
-} from 'sequelize';
+  NonAttribute,
+} from "sequelize";
+import { getGravatarUrl } from "../utils/gravatar.ts";
 
-export class User extends Model<InferAttributes<User>, InferCreationAttributes<User>> {
+export class User extends Model<
+  InferAttributes<User>,
+  InferCreationAttributes<User>
+> {
   declare id: CreationOptional<number>;
   declare first_name: string;
   declare last_name: string;
@@ -33,26 +37,26 @@ export class User extends Model<InferAttributes<User>, InferCreationAttributes<U
   static associate(models: any) {
     // 3. Profile Associations (1:1)
     User.hasOne(models.StudentProfile, {
-      foreignKey: 'user_id',
-      as: 'studentProfile'
+      foreignKey: "user_id",
+      as: "studentProfile",
     });
 
     User.hasOne(models.StaffProfile, {
-      foreignKey: 'user_id',
-      as: 'staffProfile'
+      foreignKey: "user_id",
+      as: "staffProfile",
     });
 
     User.hasOne(models.EventOrganiserProfile, {
-      foreignKey: 'user_id',
-      as: 'eventOrganiserProfile'
+      foreignKey: "user_id",
+      as: "eventOrganiserProfile",
     });
 
     // User <-> Event (Many-to-Many)
     User.belongsToMany(models.Event, {
       through: models.EventEnrollment,
-      foreignKey: 'user_id',
-      otherKey: 'event_id',
-      as: 'enrolledEvents'
+      foreignKey: "user_id",
+      otherKey: "event_id",
+      as: "enrolledEvents",
     });
   }
 }
@@ -86,18 +90,24 @@ export default (sequelize: Sequelize) => {
         allowNull: true,
       },
       profile_picture_url: {
-        type: DataTypes.TEXT,
-        allowNull: true
+        type: DataTypes.VIRTUAL,
+        allowNull: true,
+        get() {
+          const email = this.getDataValue("email");
+          if (!email) return null;
+
+          return getGravatarUrl(email);
+        },
       },
       role: {
-        type: DataTypes.ENUM("admin","organiser","staff","student"),
+        type: DataTypes.ENUM("admin", "organiser", "staff", "student"),
         allowNull: false,
-        defaultValue: "student"
+        defaultValue: "student",
       },
       email_verified: {
         type: DataTypes.BOOLEAN,
         allowNull: false,
-        defaultValue: false
+        defaultValue: false,
       },
       is_active: {
         type: DataTypes.BOOLEAN,
@@ -122,21 +132,27 @@ export default (sequelize: Sequelize) => {
     },
     {
       sequelize,
-      modelName: 'User',
-      tableName: 'users',
+      modelName: "User",
+      tableName: "users",
       underscored: true,
       timestamps: true,
       defaultScope: {
-        attributes: { exclude: ['password', 'two_factor_secret', 'two_factor_recovery_codes'] },
+        attributes: {
+          exclude: [
+            "password",
+            "two_factor_secret",
+            "two_factor_recovery_codes",
+          ],
+        },
       },
       scopes: {
         withSecrets: {
           attributes: {
-            include: ['password', 'two_factor_secret']
-          }
+            include: ["password", "two_factor_secret"],
+          },
         },
-      }
-    }
+      },
+    },
   );
 
   return User;

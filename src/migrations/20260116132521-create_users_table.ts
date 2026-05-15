@@ -52,11 +52,6 @@ export default {
         defaultValue: "student"
       },
 
-      profile_picture_url: {
-        type: DataTypes.TEXT,
-        allowNull: true
-      },
-
       is_active: {
         type: DataTypes.BOOLEAN,
         allowNull: false,
