@@ -156,4 +156,36 @@ export class ProfileController {
       });
     }
   }
+
+  static async updatePersonalInfo(req: Request, res: Response) {
+    try {
+      // 1. Get the User ID from the auth middleware (e.g., JWT)
+      // If this is for an admin updating someone else, use req.params.id
+      const userId = req.user?.userId; 
+
+      // 2. Extract specific fields to prevent "over-posting" (malicious extra data)
+      const { first_name, last_name } = req.body;
+
+      // 3. Call the service method we refactored
+      const updatedProfile = await ProfileService.updatePersonalInfo(Number(userId), {
+        first_name,
+        last_name,
+      });
+
+      // 4. Return the flattened profile directly
+      return res.status(200).json({
+        message: "Profile updated successfully",
+        user: updatedProfile,
+      });
+
+    } catch (error: any) {
+      // 5. Error Handling
+      if (error.message === "User not found.") {
+        return res.status(404).json({ message: error.message });
+      }
+
+      console.error("Update Profile Error:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  }
 }

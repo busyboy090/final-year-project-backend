@@ -30,7 +30,7 @@ router.patch(
   userController.UserManagementController.update,
 );
 
-router.post(
+router.patch(
   "/profile/student/complete",
   rateLimiter.authLimiter("/profile/student/complete"),
   authMiddleware.authenticate,
@@ -53,5 +53,18 @@ router.patch(
   authMiddleware.verifyTempToken("set_password"),
   userController.UserManagementController.setPassword,
 );
+
+router.patch(
+  "/change-password",
+  validate(userValidators.changePasswordSchema),
+  authMiddleware.authenticate,
+  userController.changePassword,
+);
+
+router.patch("/profile/personal",
+  authMiddleware.authenticate,
+  validate(userValidators.baseUserUpdateSchema),
+  userController.ProfileController.updatePersonalInfo
+)
 
 export default router;

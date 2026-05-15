@@ -8,30 +8,30 @@ export class ProfileService {
     if (role === "student") {
       includeOptions.push({
         model: db.StudentProfile,
-        as:    "studentProfile",
+        as: "studentProfile",
         include: [
           { model: db.Department, as: "department" },
-          { model: db.Level,      as: "level" },
+          { model: db.Level, as: "level" },
         ],
       });
     } else if (role === "staff") {
       includeOptions.push({
         model: db.StaffProfile,
-        as:    "staffProfile",
+        as: "staffProfile",
         include: [
-          { model: db.Faculty,     as: "faculty" },
-          { model: db.Department,  as: "department" },
+          { model: db.Faculty, as: "faculty" },
+          { model: db.Department, as: "department" },
         ],
       });
     } else if (role === "event-organiser") {
       includeOptions.push({
         model: db.EventOrganiserProfile,
-        as:    "eventOrganiserProfile",
+        as: "eventOrganiserProfile",
       });
     }
 
     const user = await db.User.findByPk(userId, {
-      include:    includeOptions,
+      include: includeOptions,
       attributes: {
         exclude: ["password", "two_factor_secret", "two_factor_recovery_codes"],
       },
@@ -41,10 +41,11 @@ export class ProfileService {
 
     const userPlain = user.get({ plain: true });
     const profileData =
-      userPlain.studentProfile        ||
-      userPlain.staffProfile          ||
-      userPlain.eventOrganiserProfile ;
-      {};
+      userPlain.studentProfile ||
+      userPlain.staffProfile ||
+      userPlain.eventOrganiserProfile;
+    {
+    }
 
     delete userPlain.studentProfile;
     delete userPlain.staffProfile;
@@ -67,19 +68,25 @@ export class ProfileService {
     return { ...userPlain, ...profileData, needsProfileCompletion };
   }
 
-  static async checkUserProfiles(userId: number, role: UserRole): Promise<boolean> {
+  static async checkUserProfiles(
+    userId: number,
+    role: UserRole,
+  ): Promise<boolean> {
     switch (role) {
       case "student":
         return !!(await db.StudentProfile.findOne({
-          where: { user_id: userId }, attributes: ["id"],
+          where: { user_id: userId },
+          attributes: ["id"],
         }));
       case "staff":
         return !!(await db.StaffProfile.findOne({
-          where: { user_id: userId }, attributes: ["id"],
+          where: { user_id: userId },
+          attributes: ["id"],
         }));
       case "event-organiser":
         return !!(await db.EventOrganiserProfile.findOne({
-          where: { user_id: userId }, attributes: ["id"],
+          where: { user_id: userId },
+          attributes: ["id"],
         }));
       default:
         return true;
@@ -88,10 +95,10 @@ export class ProfileService {
 
   // ✅ shared private helper — all three update methods were identical except model + role
   private static async upsertProfile(
-    userId:    number,
-    role:      UserRole,
-    model:     any,
-    data:      any,
+    userId: number,
+    role: UserRole,
+    model: any,
+    data: any,
   ) {
     const transaction = await db.sequelize.transaction();
     try {
@@ -102,17 +109,17 @@ export class ProfileService {
       if (first_name || last_name) {
         const updateObj: any = {};
         if (first_name) updateObj.first_name = first_name;
-        if (last_name)  updateObj.last_name  = last_name;
+        if (last_name) updateObj.last_name = last_name;
         await user.update(updateObj, { transaction });
       }
 
-      if(user.role === "super-admin") {
+      if (user.role === "super-admin") {
         await transaction.commit();
         return await this.getFlattenedUserProfile(userId, role);
       }
 
       const [profile, created] = await model.findOrCreate({
-        where:    { user_id: userId },
+        where: { user_id: userId },
         defaults: { ...profileData, user_id: userId },
         transaction,
       });
@@ -136,7 +143,12 @@ export class ProfileService {
   }
 
   static async updateEventOrganiserProfile(userId: number, data: any) {
-    return this.upsertProfile(userId, "event-organiser", db.EventOrganiserProfile, data);
+    return this.upsertProfile(
+      userId,
+      "event-organiser",
+      db.EventOrganiserProfile,
+      data,
+    );
   }
 
   static async updateAdminProfile(userId: number, data: any) {
@@ -150,5 +162,42 @@ export class ProfileService {
     );
     if (affectedCount === 0) throw new Error("User not found.");
     return { success: true, url };
+  }
+
+  static async updatePersonalInfo(
+    userId: number,
+    data: { first_name?: string; last_name?: string },
+  ) {
+    const { first_name, last_name } = data;
+
+    // 1. Build the update object dynamically
+    const updateObj: Partial<typeof data> = {};
+    if (first_name) updateObj.first_name = first_name;
+    if (last_name) updateObj.last_name = last_name;
+
+    // If no data is provided, avoid a database call
+    if (Object.keys(updateObj).length === 0) {
+      throw new Error("No update data provided.");
+    }
+
+    // 2. Perform the update
+    const [affectedCount] = await db.User.update(updateObj, {
+      where: { id: userId },
+    });
+
+    if (affectedCount === 0) {
+      throw new Error("User not found.");
+    }
+
+    // 3. Fetch the updated user to get the role
+    // You need to fetch the user first because 'user.role' was undefined in your snippet
+    const updatedUser = await db.User.findByPk(userId);
+
+    if (!updatedUser) {
+      throw new Error("User not found after update.");
+    }
+
+    // 4. Return the flattened profile
+    return await this.getFlattenedUserProfile(userId, updatedUser.role);
   }
 }

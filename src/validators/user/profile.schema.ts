@@ -132,6 +132,7 @@ export const avatarUpdateSchema = z.object({
 });
 
 // TypeScript Types extracted from the schemas
+export type BaseUserUpdateInput = z.infer<typeof baseUserUpdateSchema>;
 export type StudentProfileInput = z.infer<typeof studentProfileSchema>;
 export type StaffProfileInput = z.infer<typeof staffProfileSchema>;
 export type AvatarUpdateInput = z.infer<typeof avatarUpdateSchema>;
