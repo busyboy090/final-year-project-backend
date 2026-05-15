@@ -239,7 +239,7 @@ router.post("/refresh-token", authControllers.generateNewAccessToken);
 
 router.post("/logout", authControllers.logoutController);
 
-router.post(
+router.get(
   "/verify-email/session",
   authControllers.verifyTempTokenController("email_verification"),
 );
@@ -251,11 +251,11 @@ router.post(
   authControllers.resendOtpController("email_verification"),
 );
 
-router.post("/session", authControllers.isAuthenticatedController);
+router.get("/session", authControllers.isAuthenticatedController);
 
 // Multi-Factor Authentication route
 
-router.post("/mfa/session", authControllers.verifyTempTokenController("mfa"));
+router.get("/mfa/session", authControllers.verifyTempTokenController("mfa"));
 
 router.post(
   "/verify-mfa",
@@ -303,12 +303,12 @@ router.patch(
   authControllers.resendOtpController("password_reset"),
 );
 
-router.post(
+router.get(
   "/reset-password/session",
   authControllers.verifyTempTokenController("password_reset"),
 );
 
-router.post(
+router.get(
   "/set-password/session",
   authControllers.verifyTempTokenController("set_password"),
 );
