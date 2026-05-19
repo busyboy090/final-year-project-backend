@@ -37,7 +37,7 @@ export const loginUser = async (payload: {
       return { ok: false, reason: "INVALID_CREDENTIALS" };
     }
 
-    const isMatch = await bcrypt.compare(user.password, payload.password);
+    const isMatch = await bcrypt.compare(payload.password, user.password);
 
     if(!isMatch) {
       return { ok: false, reason: "INVALID_CREDENTIALS" };
