@@ -28,7 +28,7 @@ export class VenueController {
       const finalPayload = {
         ...req.body,
         thumbnail: thumbnailURL,
-        images: galleryURLs
+        images: galleryURLs,
       };
 
       const result = await VenueService.createVenue(finalPayload);
@@ -37,7 +37,7 @@ export class VenueController {
         return res.status(201).json({
           success: true,
           message: "Venue created successfully.",
-          data: result.data
+          data: result.data,
         });
       }
 
@@ -45,11 +45,12 @@ export class VenueController {
       return res.status(result.reason === "ALREADY_EXISTS" ? 409 : 400).json({
         success: false,
         message: "A venue with this name already exists.",
-        code: "ALREADY_EXISTS"
+        code: "ALREADY_EXISTS",
       });
-
     } catch (error: any) {
-      return res.status(500).json({ success: false, message: "Internal server error" });
+      return res
+        .status(500)
+        .json({ success: false, message: "Internal server error" });
     }
   }
 
@@ -59,7 +60,9 @@ export class VenueController {
   static async updateVenue(req: Request, res: Response) {
     try {
       const { id } = req.params;
-      const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
+      const files = req.files as
+        | { [fieldname: string]: Express.Multer.File[] }
+        | undefined;
 
       // 1. Start with the existing body data
       const updatePayload: any = { ...req.body };
@@ -67,13 +70,15 @@ export class VenueController {
       // 2. Handle Thumbnail Update (if provided)
       const thumbnailFile = files?.thumbnail?.[0];
       if (thumbnailFile) {
-        updatePayload.thumbnail = await CloudinaryHelper.uploadSingle(thumbnailFile);
+        updatePayload.thumbnail =
+          await CloudinaryHelper.uploadSingle(thumbnailFile);
       }
 
       // 3. Handle Gallery/Images Update (if provided)
       const galleryFiles = files?.images || [];
       if (galleryFiles.length > 0) {
-        updatePayload.images = await CloudinaryHelper.uploadMultiple(galleryFiles);
+        updatePayload.images =
+          await CloudinaryHelper.uploadMultiple(galleryFiles);
       }
 
       // 4. Send the merged payload to the service
@@ -83,20 +88,22 @@ export class VenueController {
         return res.status(200).json({
           success: true,
           message: "Venue updated successfully.",
-          data: result.data
+          data: result.data,
         });
       }
 
       return res.status(404).json({
         success: false,
-        message: result.reason === "VENUE_NOT_FOUND" ? "Venue not found." : "Update failed."
+        message:
+          result.reason === "VENUE_NOT_FOUND"
+            ? "Venue not found."
+            : "Update failed.",
       });
-
     } catch (error: any) {
       console.error("Update Error:", error);
       return res.status(500).json({
         success: false,
-        message: "Internal server error."
+        message: "Internal server error.",
       });
     }
   }
@@ -105,14 +112,37 @@ export class VenueController {
    * GET /api/v1/venues
    */
   static async getAllVenues(req: Request, res: Response) {
-    try {
-      const minCapacity = req.query.minCapacity ? Number(req.query.minCapacity) : undefined;
-      const result = await VenueService.getAllVenues(minCapacity);
-      return res.status(200).json({ success: true, data: result.data });
-    } catch (error) {
-      return res.status(500).json({ success: false, message: "Internal server error." });
-    }
+  try {
+    // Extract query parameters
+    const minCapacity = req.query.minCapacity ? Number(req.query.minCapacity) : undefined;
+    const limit = req.query.limit ? Number(req.query.limit) : undefined;
+    const page = req.query.page ? Number(req.query.page) : undefined;
+    const search = req.query.search ? String(req.query.search) : undefined;
+    
+    // New ENUM filters
+    const status = req.query.status ? String(req.query.status) : undefined;
+    const type = req.query.type ? String(req.query.type) : undefined;
+
+    // Pass everything to the service layer
+    const result = await VenueService.getAllVenues({ 
+      minCapacity, 
+      limit, 
+      page, 
+      search, 
+      status, 
+      type 
+    });
+
+    return res.status(200).json({ 
+      success: true, 
+      data: result.data,
+      pagination: result.pagination 
+    });
+  } catch (error) {
+    console.error("GET_ALL_VENUES_CONTROLLER_ERROR:", error);
+    return res.status(500).json({ success: false, message: "Internal server error." });
   }
+}
 
   /**
    * GET /api/v1/venues/:id
@@ -123,12 +153,16 @@ export class VenueController {
       const result = await VenueService.getVenueById(Number(id));
 
       if (!result.ok) {
-        return res.status(404).json({ success: false, message: "Venue not found." });
+        return res
+          .status(404)
+          .json({ success: false, message: "Venue not found." });
       }
 
       return res.status(200).json({ success: true, data: result.data });
     } catch (error) {
-      return res.status(500).json({ success: false, message: "Internal server error." });
+      return res
+        .status(500)
+        .json({ success: false, message: "Internal server error." });
     }
   }
 }

@@ -1,12 +1,25 @@
 import db from "../models/index.ts";
 import { Op } from "sequelize";
-import type { CreateVenueInput, UpdateVenueInput } from "../validators/venue.schema.ts";
+import type {
+  CreateVenueInput,
+  UpdateVenueInput,
+} from "../validators/venue.schema.ts";
 
 type VenueResult = {
   ok: boolean;
   data?: any;
   reason?: "VENUE_NOT_FOUND" | "DATABASE_ERROR" | "ALREADY_EXISTS";
+  pagination?: any;
 };
+
+interface GetAllVenuesArgs {
+  minCapacity?: number;
+  limit?: number;
+  page?: number;
+  search?: string;
+  status?: string; // Added status
+  type?: string; // Added type
+}
 
 export class VenueService {
   /**
@@ -18,23 +31,27 @@ export class VenueService {
       include: [
         {
           model: db.VenueFacility,
-          as: 'venueFacilities',
-          include: [{ model: db.Facility, as: 'facility' }]
-        }
-      ]
+          as: "venueFacilities",
+          include: [{ model: db.Facility, as: "facility" }],
+        },
+      ],
     });
   }
 
   /**
    * Creates a new university venue and its associated facilities
    */
-  static async createVenue(data: CreateVenueInput['body']): Promise<VenueResult> {
+  static async createVenue(
+    data: CreateVenueInput["body"],
+  ): Promise<VenueResult> {
     const t = await db.sequelize.transaction();
     try {
       const { features, ...venueData } = data;
 
       // 1. Duplicate Check
-      const existingVenue = await db.Venue.findOne({ where: { name: data.name } });
+      const existingVenue = await db.Venue.findOne({
+        where: { name: data.name },
+      });
       if (existingVenue) {
         await t.rollback();
         return { ok: false, reason: "ALREADY_EXISTS" };
@@ -47,7 +64,7 @@ export class VenueService {
       if (features && features.length > 0) {
         const facilityLinks = features.map((facilityId: string) => ({
           venue_id: newVenue.id,
-          facility_id: facilityId
+          facility_id: facilityId,
         }));
         await db.VenueFacility.bulkCreate(facilityLinks, { transaction: t });
       }
@@ -65,7 +82,10 @@ export class VenueService {
   /**
    * Updates an existing venue and synchronizes its facilities
    */
-  static async updateVenue(id: number, data: Partial<UpdateVenueInput['body']>): Promise<VenueResult> {
+  static async updateVenue(
+    id: number,
+    data: Partial<UpdateVenueInput["body"]>,
+  ): Promise<VenueResult> {
     const t = await db.sequelize.transaction();
     try {
       const venue = await db.Venue.findByPk(id, { transaction: t });
@@ -82,13 +102,16 @@ export class VenueService {
       // 2. Sync Facilities (Overwrite strategy)
       if (features) {
         // Remove existing associations
-        await db.VenueFacility.destroy({ where: { venue_id: id }, transaction: t });
+        await db.VenueFacility.destroy({
+          where: { venue_id: id },
+          transaction: t,
+        });
 
         // Add new associations
         if (features.length > 0) {
           const facilityLinks = features.map((facilityId: string) => ({
             venue_id: id,
-            facility_id: facilityId
+            facility_id: facilityId,
           }));
           await db.VenueFacility.bulkCreate(facilityLinks, { transaction: t });
         }
@@ -107,19 +130,66 @@ export class VenueService {
   /**
    * Fetches all university venues with active associations
    */
-  static async getAllVenues(minCapacity?: number): Promise<VenueResult> {
+  static async getAllVenues({
+    minCapacity,
+    limit = 10,
+    page = 1,
+    search,
+    status,
+    type,
+  }: GetAllVenuesArgs): Promise<VenueResult> {
     try {
-      const whereClause = minCapacity ? { capacity: { [Op.gte]: minCapacity } } : {};
-      const venues = await db.Venue.findAll({
+      const offset = (page - 1) * limit;
+      const whereClause: any = {};
+
+      // 1. Capacity Filter
+      if (minCapacity) {
+        whereClause.capacity = { [Op.gte]: minCapacity };
+      }
+
+      // 2. Search Filter (Case-insensitive name search)
+      if (search) {
+        whereClause.name = { [Op.iLike]: `%${search}%` }; // Use [Op.like] if on MySQL
+      }
+
+      // 3. Status ENUM Filter
+      if (status) {
+        whereClause.status = status;
+      }
+
+      // 4. Type ENUM Filter
+      if (type) {
+        whereClause.type = type;
+      }
+
+      // Execute query
+      const { count, rows } = await db.Venue.findAndCountAll({
         where: whereClause,
-        order: [['name', 'ASC']],
-        include: [{
-          model: db.VenueFacility,
-          as: 'venueFacilities',
-          include: [{ model: db.Facility, as: 'facility' }]
-        }]
+        limit: limit,
+        offset: offset,
+        order: [["name", "ASC"]],
+        distinct: true,
+        include: [
+          {
+            model: db.VenueFacility,
+            as: "venueFacilities",
+            include: [{ model: db.Facility, as: "facility" }],
+          },
+        ],
       });
-      return { ok: true, data: venues };
+
+      const totalPages = Math.ceil(count / limit);
+
+      return {
+        ok: true,
+        data: rows,
+        pagination: {
+          totalItems: count,
+          totalPages: totalPages,
+          currentPage: page,
+          limit: limit,
+        },
+      };
     } catch (error) {
       console.error("GET_ALL_VENUES_SERVICE_ERROR:", error);
       throw error;
@@ -137,7 +207,10 @@ export class VenueService {
     }
   }
 
-  static async updateVenueStatus(id: number, status: string): Promise<VenueResult> {
+  static async updateVenueStatus(
+    id: number,
+    status: string,
+  ): Promise<VenueResult> {
     try {
       const venue = await db.Venue.findByPk(id);
       if (!venue) return { ok: false, reason: "VENUE_NOT_FOUND" };
@@ -149,26 +222,29 @@ export class VenueService {
     }
   }
 
-  static async isVenueAvailable(venueId: number, startDate: Date, endDate: Date): Promise<boolean> {
+  static async isVenueAvailable(
+    venueId: number,
+    startDate: Date,
+    endDate: Date,
+  ): Promise<boolean> {
     const conflictingEvent = await db.Event.findOne({
       where: {
         venue: venueId,
-        status: { [Op.ne]: 'rejected' },
+        status: { [Op.ne]: "rejected" },
         [Op.or]: [
           { start_date: { [Op.between]: [startDate, endDate] } },
           { end_date: { [Op.between]: [startDate, endDate] } },
           {
             [Op.and]: [
               { start_date: { [Op.lte]: startDate } },
-              { end_date: { [Op.gte]: endDate } }
-            ]
-          }
-        ]
-      }
+              { end_date: { [Op.gte]: endDate } },
+            ],
+          },
+        ],
+      },
     });
     return !conflictingEvent;
   }
 
   // Delete Venue
-  
 }
