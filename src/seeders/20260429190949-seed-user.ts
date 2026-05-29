@@ -9,11 +9,9 @@ export default {
     const now = new Date();
     const defaultPassword = await bcrypt.hash("Password@ADUN2026", 12);
 
-    // ─── 1. USERS ─────────────────────────────────────────────────────────────
     await queryInterface.bulkInsert("users", [
       // Super Admin (already existing)
       {
-        id: 1,
         first_name: "System",
         last_name: "Administrator",
         email: "admin@adun-ems.name.ng",
@@ -28,9 +26,8 @@ export default {
         updated_at: now,
       },
 
-      // ── Staff ────────────────────────────────────────────────────────────────
+      // Staff
       {
-        id: 2,
         first_name: "Emeka",
         last_name: "Okafor",
         email: "e.okafor@adun-ems.name.ng",
@@ -45,7 +42,6 @@ export default {
         updated_at: now,
       },
       {
-        id: 3,
         first_name: "Ngozi",
         last_name: "Adeyemi",
         gender: "female",
@@ -60,9 +56,8 @@ export default {
         updated_at: now,
       },
 
-      // ── Students ─────────────────────────────────────────────────────────────
+      // Students
       {
-        id: 4,
         first_name: "Chukwuemeka",
         last_name: "Nwosu",
         gender: "male",
@@ -76,7 +71,6 @@ export default {
         updated_at: now,
       },
       {
-        id: 5,
         first_name: "Amina",
         last_name: "Bello",
         gender: "female",
@@ -90,7 +84,6 @@ export default {
         updated_at: now,
       },
       {
-        id: 6,
         first_name: "Tunde",
         last_name: "Fashola",
         gender: "male",
@@ -104,9 +97,8 @@ export default {
         updated_at: now,
       },
 
-      // ── Event Organisers ─────────────────────────────────────────────────────
+      // Event Organisers
       {
-        id: 7,
         first_name: "Sola",
         last_name: "Martins",
         gender: "female",
@@ -121,7 +113,6 @@ export default {
         updated_at: now,
       },
       {
-        id: 8,
         first_name: "Kelechi",
         last_name: "Eze",
         gender: "male",
@@ -136,7 +127,6 @@ export default {
         updated_at: now,
       },
       {
-        id: 9,
         first_name: "Fatima",
         last_name: "Umar",
         gender: "female",
@@ -152,9 +142,6 @@ export default {
       },
     ]);
 
-    // ─── 2. STAFF PROFILES ────────────────────────────────────────────────────
-    // department_id refs: 1=SEN, 2=CSC, 12=ICT, 13=Student Affairs
-    // faculty_id refs: 1=FOS, 3=FEET
     await queryInterface.bulkInsert("staff_profiles", [
       {
         user_id: 2,
@@ -176,9 +163,6 @@ export default {
       },
     ]);
 
-    // ─── 3. STUDENT PROFILES ──────────────────────────────────────────────────
-    // department_id refs: 1=SEN, 2=CSC, 5=EEE
-    // level_id: adjust to match your actual levels seed (100–500)
     await queryInterface.bulkInsert("student_profiles", [
       {
         user_id: 4,
@@ -206,11 +190,6 @@ export default {
       },
     ]);
 
-    // ─── 4. EVENT ORGANISER PROFILES ─────────────────────────────────────────
-    // organiser_id refs from organisations seed:
-    //   13 = Student Union Government (SUG)
-    //   6  = SENSA
-    //   14 = Student Affairs (dept-linked org)
     await queryInterface.bulkInsert("event_organiser_profiles", [
       {
         user_id: 7,
@@ -233,7 +212,6 @@ export default {
     ]);
   },
 
-  // ─── DOWN ──────────────────────────────────────────────────────────────────
   down: async (queryInterface: QueryInterface) => {
     await queryInterface.bulkDelete("event_organiser_profiles", {}, {});
     await queryInterface.bulkDelete("student_profiles", {}, {});

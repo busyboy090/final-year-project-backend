@@ -6,35 +6,35 @@ export default {
   up: async (queryInterface: QueryInterface) => {
     // 1. Insert Faculties
     await queryInterface.bulkInsert("faculties", [
-      { id: 1, name: "Faculty of Science", code: "FOS", created_at: new Date(), updated_at: new Date() },
-      { id: 2, name: "Faculty of Arts, Management and Social Sciences", code: "FAMSS", created_at: new Date(), updated_at: new Date() },
-      { id: 3, name: "Faculty of Engineering and Technology", code: "FEET", created_at: new Date(), updated_at: new Date() },
-      { id: 4, name: "Faculty of Maritime Studies", code: "FMS", created_at: new Date(), updated_at: new Date() },
-      { id: 5, name: "Faculty of Law", code: "FOL", created_at: new Date(), updated_at: new Date() },
+      { name: "Faculty of Science", code: "FOS", created_at: new Date(), updated_at: new Date() },
+      { name: "Faculty of Arts, Management and Social Sciences", code: "FAMSS", created_at: new Date(), updated_at: new Date() },
+      { name: "Faculty of Engineering and Technology", code: "FEET", created_at: new Date(), updated_at: new Date() },
+      { name: "Faculty of Maritime Studies", code: "FMS", created_at: new Date(), updated_at: new Date() },
+      { name: "Faculty of Law", code: "FOL", created_at: new Date(), updated_at: new Date() },
     ]);
 
     // 2. Insert Departments
     await queryInterface.bulkInsert("departments", [
       // Faculty of Science (faculty_id: 1)
-      { id: 1,  name: "Software Engineering", code: "SEN", type: "Academic", faculty_id: 1, created_at: new Date(), updated_at: new Date() },
-      { id: 2,  name: "Computer Science", code: "CSC", type: "Academic", faculty_id: 1, created_at: new Date(), updated_at: new Date() },
-      { id: 3,  name: "Cyber Security", code: "CYS", type: "Academic", faculty_id: 1, created_at: new Date(), updated_at: new Date() },
-      { id: 4,  name: "Forensic Science", code: "FSC", type: "Academic", faculty_id: 1, created_at: new Date(), updated_at: new Date() },
+      { name: "Software Engineering", code: "SEN", type: "Academic", faculty_id: 1, created_at: new Date(), updated_at: new Date() },
+      { name: "Computer Science", code: "CSC", type: "Academic", faculty_id: 1, created_at: new Date(), updated_at: new Date() },
+      { name: "Cyber Security", code: "CYS", type: "Academic", faculty_id: 1, created_at: new Date(), updated_at: new Date() },
+      { name: "Forensic Science", code: "FSC", type: "Academic", faculty_id: 1, created_at: new Date(), updated_at: new Date() },
       // Faculty of Engineering (faculty_id: 3)
-      { id: 5,  name: "Electrical and Electronics Engineering", code: "EEE", type: "Academic", faculty_id: 3, created_at: new Date(), updated_at: new Date() },
-      { id: 6,  name: "Mechanical Engineering", code: "MEE", type: "Academic", faculty_id: 3, created_at: new Date(), updated_at: new Date() },
-      { id: 7,  name: "Civil Engineering", code: "CVE", type: "Academic", faculty_id: 3, created_at: new Date(), updated_at: new Date() },
+      { name: "Electrical and Electronics Engineering", code: "EEE", type: "Academic", faculty_id: 3, created_at: new Date(), updated_at: new Date() },
+      { name: "Mechanical Engineering", code: "MEE", type: "Academic", faculty_id: 3, created_at: new Date(), updated_at: new Date() },
+      { name: "Civil Engineering", code: "CVE", type: "Academic", faculty_id: 3, created_at: new Date(), updated_at: new Date() },
       // Faculty of Management (faculty_id: 2)
-      { id: 8,  name: "Accounting", code: "ACC", type: "Academic", faculty_id: 2, created_at: new Date(), updated_at: new Date() },
-      { id: 9,  name: "Business Administration", code: "BUS", type: "Academic", faculty_id: 2, created_at: new Date(), updated_at: new Date() },
-      { id: 10, name: "Economics", code: "ECO", type: "Academic", faculty_id: 2, created_at: new Date(), updated_at: new Date() },
+      { name: "Accounting", code: "ACC", type: "Academic", faculty_id: 2, created_at: new Date(), updated_at: new Date() },
+      { name: "Business Administration", code: "BUS", type: "Academic", faculty_id: 2, created_at: new Date(), updated_at: new Date() },
+      { name: "Economics", code: "ECO", type: "Academic", faculty_id: 2, created_at: new Date(), updated_at: new Date() },
       // Faculty of Maritime (faculty_id: 4)
-      { id: 11, name: "Nautical Science", code: "NSC", type: "Academic", faculty_id: 4, created_at: new Date(), updated_at: new Date() },
+      { name: "Nautical Science", code: "NSC", type: "Academic", faculty_id: 4, created_at: new Date(), updated_at: new Date() },
       // Administrative / Support
-      { id: 12, name: "ICT Department", code: "ICT", type: "Administrative", faculty_id: null, created_at: new Date(), updated_at: new Date() },
-      { id: 13, name: "Student Affairs", code: "STA", type: "Administrative", faculty_id: null, created_at: new Date(), updated_at: new Date() },
-      { id: 14, name: "Student Union Government", code: "SUG", type: "Student Union", faculty_id: null, created_at: new Date(), updated_at: new Date() },
-      { id: 15, name: "Library", code: "LIB", type: "Support Unit", faculty_id: null, created_at: new Date(), updated_at: new Date() },
+      { name: "ICT Department", code: "ICT", type: "Administrative", faculty_id: null, created_at: new Date(), updated_at: new Date() },
+      { name: "Student Affairs", code: "STA", type: "Administrative", faculty_id: null, created_at: new Date(), updated_at: new Date() },
+      { name: "Student Union Government", code: "SUG", type: "Student Union", faculty_id: null, created_at: new Date(), updated_at: new Date() },
+      { name: "Library", code: "LIB", type: "Support Unit", faculty_id: null, created_at: new Date(), updated_at: new Date() },
     ]);
 
     // 3. Insert Organisations
