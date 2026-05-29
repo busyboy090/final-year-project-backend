@@ -12,13 +12,11 @@ import { Department } from './department.ts';
 
 export class StaffProfile extends Model<InferAttributes<StaffProfile>, InferCreationAttributes<StaffProfile>> {
   declare id: CreationOptional<number>;
-  declare title: string; // e.g., Prof, Dr, Mr, Mrs
   declare user_id: number;
   declare staff_id: string; // Unique Employee ID
   declare faculty_id: number | null;
   declare department_id: number | null;
   declare staff_type: 'academic-staff' | 'non-academic-staff';
-  declare phone: string | null;
 
   // Timestamps
   declare created_at: CreationOptional<Date>;
@@ -57,10 +55,6 @@ export default (sequelize: Sequelize) => {
         autoIncrement: true,
         primaryKey: true,
       },
-      title: {
-        type: DataTypes.STRING,
-        allowNull: false,
-      },
       user_id: {
         type: DataTypes.INTEGER,
         allowNull: false,
@@ -94,10 +88,6 @@ export default (sequelize: Sequelize) => {
       staff_type: {
         type: DataTypes.ENUM('academic-staff', 'non-academic-staff'),
         allowNull: false,
-      },
-      phone: {
-        type: DataTypes.STRING,
-        allowNull: true,
       },
       created_at: DataTypes.DATE,
       updated_at: DataTypes.DATE,

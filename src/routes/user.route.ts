@@ -39,6 +39,15 @@ router.patch(
   userController.ProfileController.completeStudentProfile,
 );
 
+router.patch(
+  "/profile/staff/complete",
+  rateLimiter.authLimiter("/profile/staff/complete"),
+  authMiddleware.authenticate,
+  roleMiddleware.hasRole(["staff"]),
+  validate(userValidators.staffProfileSchema),
+  userController.ProfileController.completeStaffProfile,
+);
+
 router.post(
   "/",
   authMiddleware.authenticate,

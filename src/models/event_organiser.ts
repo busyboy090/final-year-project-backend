@@ -1,3 +1,4 @@
+import { Organisation } from './organisation.ts';
 import { Model, DataTypes } from "sequelize";
 import type {
   Sequelize,
@@ -13,14 +14,12 @@ export class EventOrganiserProfile extends Model<
   InferCreationAttributes<EventOrganiserProfile>
 > {
   declare id: CreationOptional<number>;
-  declare organiser_id: CreationOptional<string | null>;
+  declare organisation_id: number;
   declare user_id: number;
-  declare title: CreationOptional<string | null>;
-  declare phone: CreationOptional<string | null>;
-  declare organisation: CreationOptional<string | null>;
 
   // Associations
   declare user?: NonAttribute<User>;
+  declare organisation?: NonAttribute<Organisation>;
 
   // Timestamps
   declare created_at: CreationOptional<Date>;
@@ -32,6 +31,11 @@ export class EventOrganiserProfile extends Model<
       foreignKey: "user_id",
       as: "user",
     });
+
+    EventOrganiserProfile.belongsTo(models.Organisation, {
+      foreignKey: "organisation_id",
+      as: "organisation"
+    })
   }
 }
 
@@ -52,22 +56,15 @@ export default (sequelize: Sequelize) => {
           key: "id",
         },
       },
-      organiser_id: {
+      organisation_id: {
         type: DataTypes.STRING,
         allowNull: true,
-        unique: true,
-      },
-      organisation: {
-        type: DataTypes.STRING,
-        allowNull: true,
-      },
-      title: {
-        type: DataTypes.STRING,
-        allowNull: true,
-      },
-      phone: {
-        type: DataTypes.STRING,
-        allowNull: true,
+        references: {
+          model: "organisations",
+          key: "id"
+        },
+        onDelete: "CASCADE",
+        onUpdate: "CASCADE"
       },
       created_at: DataTypes.DATE,
       updated_at: DataTypes.DATE,

@@ -17,7 +17,7 @@ export class UserManagementService {
     payload: CreateUserPayload,
   ): Promise<CreateUserResult> {
     try {
-      const { first_name, last_name, email, role } = payload;
+      const { first_name, last_name, email, role, organisation_id } = payload;
 
       return await db.sequelize.transaction(async (t: Transaction) => {
         const existingUser = await db.User.findOne({
@@ -47,27 +47,15 @@ export class UserManagementService {
           { transaction: t },
         );
 
-        // ✅ create initial profile based on single role
-        // switch (role) {
-        //   case "staff":
-        //     await db.StaffProfile.create({
-        //       user_id:       newUser.id,
-        //       department_id: department_id || null,
-        //       staff_type:    staff_type    || null,
-        //     }, { transaction: t });
-        //     break;
-
-        //   case "event-organiser":
-        //     await db.EventOrganiserProfile.create(
-        //       { user_id: newUser.id },
-        //       { transaction: t },
-        //     );
-        //     break
-
-        //   // student profile created when they complete their profile
-        //   default:
-        //     break;
-        // }
+        if (role === "event-organiser") {
+          await db.EventOrganiserProfile.create(
+            {
+              user_id: newUser.id,
+              organisation_id: organisation_id!,
+            },
+            { transaction: t },
+          );
+        }
 
         const setupToken = jwt.generateTempToken(
           { userId: newUser.id, email: newUser.email, type: "set_password" },
@@ -169,28 +157,143 @@ export class UserManagementService {
     data: RegistryUserRow[];
     meta: { page: number; limit: number; total: number; totalPages: number };
   }> {
-    const { page, limit, search, role, department_id: departmentId } = params;
+    const {
+      page,
+      limit,
+      search,
+      role,
+      department_id: departmentId,
+      organisation_id: organisationId,
+      faculty_id: facultyId,
+    } = params;
     const offset = (page - 1) * limit;
-    const where: any = {};
+
+    // 1. Core target filters applied directly to the base User schema
+    const where: Record<string, unknown> = {};
 
     if (search?.trim()) {
       const term = `%${search.trim()}%`;
-      where[Op.or] = [
+      where[Op.or as unknown as string] = [
         { first_name: { [Op.iLike]: term } },
         { last_name: { [Op.iLike]: term } },
         { email: { [Op.iLike]: term } },
       ];
     }
 
-    // ✅ role is just a column filter like any other
     if (role && role !== "all") {
       where.role = role;
     }
 
-    const departmentWhere = departmentId
-      ? { department_id: departmentId }
-      : undefined;
+    const filteringStudents = !role || role === "all" || role === "student";
+    const filteringStaff = !role || role === "all" || role === "staff";
+    const filteringOrganiser =
+      !role || role === "all" || role === "event-organiser";
 
+    // 2. Formulate cross-profile OR filtering logic for global unit queries
+    const orConditions: any[] = [];
+
+    if (departmentId || facultyId || organisationId) {
+      if (filteringStudents && departmentId) {
+        orConditions.push({ "$studentProfile.department_id$": departmentId });
+      }
+
+      if (filteringStaff) {
+        const staffCond: Record<string, unknown> = {};
+        if (departmentId)
+          staffCond["$staffProfile.department_id$"] = departmentId;
+        if (facultyId) staffCond["$staffProfile.faculty_id$"] = facultyId;
+        if (Object.keys(staffCond).length > 0) orConditions.push(staffCond);
+      }
+
+      if (filteringOrganiser) {
+        const orgCond: Record<string, unknown> = {};
+        if (organisationId)
+          orgCond["$eventOrganiserProfile.organisation.id$"] = organisationId;
+        if (facultyId)
+          orgCond["$eventOrganiserProfile.organisation.faculty_id$"] =
+            facultyId;
+        if (departmentId)
+          orgCond["$eventOrganiserProfile.organisation.department_id$"] =
+            departmentId;
+        if (Object.keys(orgCond).length > 0) orConditions.push(orgCond);
+      }
+
+      // If a unit filter is set, apply the conditions dynamically
+      if (orConditions.length > 0) {
+        where[Op.or as unknown as string] = where[Op.or as unknown as string]
+          ? {
+              [Op.and]: [
+                { [Op.or]: where[Op.or as unknown as string] },
+                { [Op.or]: orConditions },
+              ],
+            }
+          : orConditions;
+      }
+    }
+
+    // 3. Define Clean Include Targets (using Left Joins to safely query combined data blocks)
+    const studentProfileInclude = {
+      model: db.StudentProfile,
+      as: "studentProfile",
+      attributes: ["department_id"],
+      required: role === "student" && !!departmentId, // Only INNER JOIN if explicitly matching ONLY students
+      include: [
+        {
+          model: db.Department,
+          as: "department",
+          attributes: ["id", "name"],
+        },
+      ],
+    };
+
+    const staffProfileInclude = {
+      model: db.StaffProfile,
+      as: "staffProfile",
+      attributes: ["department_id", "staff_type", "faculty_id"],
+      required: role === "staff" && (!!departmentId || !!facultyId), // Only INNER JOIN if explicitly matching ONLY staff
+      include: [
+        {
+          model: db.Department,
+          as: "department",
+          attributes: ["id", "name"],
+        },
+        {
+          model: db.Faculty,
+          as: "faculty",
+          attributes: ["id", "name"],
+        },
+      ],
+    };
+
+    const eventOrganiserProfileInclude = {
+      model: db.EventOrganiserProfile,
+      as: "eventOrganiserProfile",
+      attributes: ["organisation_id"],
+      required:
+        role === "event-organiser" &&
+        (!!organisationId || !!facultyId || !!departmentId),
+      include: [
+        {
+          model: db.Organisation,
+          as: "organisation",
+          attributes: ["id", "name"],
+          include: [
+            {
+              model: db.Department,
+              as: "department",
+              attributes: ["id", "name"],
+            },
+            {
+              model: db.Faculty,
+              as: "faculty",
+              attributes: ["id", "name"],
+            },
+          ],
+        },
+      ],
+    };
+
+    // 4. Fire Primary Aggregated Query
     const { rows, count } = await db.User.findAndCountAll({
       where,
       distinct: true,
@@ -200,58 +303,19 @@ export class UserManagementService {
       order: [["created_at", "DESC"]],
       subQuery: false,
       include: [
-        {
-          model: db.StudentProfile,
-          as: "studentProfile",
-          attributes: ["department_id"],
-          where: departmentWhere,
-          required: false,
-          include: [
-            {
-              model: db.Department,
-              as: "department",
-              attributes: ["id", "name"],
-            },
-          ],
-        },
-        {
-          model: db.StaffProfile,
-          as: "staffProfile",
-          attributes: ["department_id", "staff_type"],
-          where: departmentWhere,
-          required: false,
-          include: [
-            {
-              model: db.Department,
-              as: "department",
-              attributes: ["id", "name"],
-            },
-          ],
-        },
-        {
-          model: db.EventOrganiserProfile,
-          as: "eventOrganiserProfile",
-          required: false,
-        },
+        studentProfileInclude,
+        staffProfileInclude,
+        eventOrganiserProfileInclude,
       ],
     });
 
-    let finalRows = rows;
-    if (departmentId) {
-      finalRows = rows.filter((u: any) => u.studentProfile || u.staffProfile);
-    }
-
-    const data = finalRows.map((u: any) => serializeUserRow(u));
-    const total =
-      typeof count === "number" ? count : (count as any).length || 0;
-
     return {
-      data,
+      data: rows.map((u: any) => serializeUserRow(u)),
       meta: {
         page,
         limit,
-        total,
-        totalPages: limit > 0 ? Math.ceil(total / limit) : 0,
+        total: count,
+        totalPages: limit > 0 ? Math.ceil(count / limit) : 0,
       },
     };
   }
@@ -314,7 +378,7 @@ export class UserManagementService {
               },
             ],
           },
-          { model: db.EventOrganiserProfile, as: "eventOrganiserProfile" }
+          { model: db.EventOrganiserProfile, as: "eventOrganiserProfile" },
         ],
       });
 

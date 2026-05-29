@@ -15,12 +15,7 @@ export default {
         primaryKey: true,
         autoIncrement: true,
       },
-
-      title: {
-        type: DataTypes.STRING,
-        allowNull: false
-      },
-
+      
       user_id: {
         type: DataTypes.INTEGER,
         allowNull: false,
@@ -64,11 +59,6 @@ export default {
       staff_type: {
         type: DataTypes.ENUM("academic-staff","non-academic-staff"),
         allowNull: false
-      },
-
-      phone: {
-        type: DataTypes.STRING,
-        allowNull: true
       },
 
       created_at: {

@@ -6,6 +6,7 @@ export type CreateUserPayload = {
   email: string;
   role: UserRole;
   department_id?: number;
+  organisation_id?: number; // Only required if role is "event-organiser"
   staff_type?: "academic" | "non-academic";
 };
 
@@ -17,25 +18,34 @@ export type RegistryUserRow = {
   profile_picture_url: string | null;
   is_active: boolean;
   email_verified: boolean;
-  role: UserRole,
+  role: UserRole;
   department_id: number | null;
   department_name: string;
+  organisation_id: number | null;
+  organisation_name: string | null;
+  faculty_id: number | null;
+  faculty_name: string | null;
 };
 
 export type CreateUserResult = {
   ok: boolean;
   reason?: string;
-  user?: Pick<RegistryUserRow, "id" | "first_name" | "last_name" | "email" | "role">;
+  user?: Pick<
+    RegistryUserRow,
+    "id" | "first_name" | "last_name" | "email" | "role"
+  >;
   message?: string;
 };
 
-export type ListParams = {
+export interface ListParams {
   page: number;
   limit: number;
   search?: string;
-  role?: UserRole | string;
+  role?: string;
   department_id?: number;
-};
+  organisation_id?: number;
+  faculty_id?: number;
+}
 
 export type ListResult = {
   data: RegistryUserRow[];

@@ -5,34 +5,38 @@ import type { QueryInterface } from "sequelize";
 /** @type {import('sequelize-cli').Migration} */
 export default {
   up: async (queryInterface: QueryInterface) => {
-    await queryInterface.createTable("event_organiser_profiles", {
+    await queryInterface.createTable("organisations", {
       id: {
         type: DataTypes.INTEGER,
         allowNull: false,
         primaryKey: true,
         autoIncrement: true,
       },
-      
-      user_id: {
-        type: DataTypes.INTEGER,
-        allowNull: false,
-        unique: true,
-        references: {
-          key: "id",
-          model: "users",
-        },
-        onDelete: "CASCADE",
-        onUpdate: "CASCADE",
+
+      name: {
+        type: DataTypes.STRING,
+        allowNull: false
       },
 
-      organisation_id: {
+      department_id: {
         type: DataTypes.INTEGER,
         allowNull: true,
         references: {
-          model: "organisations",
+          model: "departments",
           key: "id"
         },
-        onDelete: "CASCADE",
+        onDelete: "SET NULL",
+        onUpdate: "CASCADE"
+      },
+
+      faculty_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        references: {
+          model: "faculties",
+          key: "id"
+        },
+        onDelete: "SET NULL",
         onUpdate: "CASCADE"
       },
 
@@ -50,6 +54,6 @@ export default {
   },
 
   down: async (queryInterface: QueryInterface) => {
-    await queryInterface.dropTable("event_organiser_profiles");
+    await queryInterface.dropTable("organisations");
   },
 };

@@ -54,17 +54,7 @@ export default {
         onDelete: "SET NULL",
         onUpdate: "CASCADE"
       },
-
-      gender: {
-        type: DataTypes.ENUM("male","female","other"),
-        allowNull: false
-      },
-
-      title: {
-        type: DataTypes.STRING,
-        allowNull: true
-      },
-
+      
       created_at: {
         allowNull: false,
         type: DataTypes.DATE,

@@ -1,0 +1,1 @@
+export type DepartmentType = "Academic" | "Administrative" | "Student Union" | "Support Unit" | "Research Unit";

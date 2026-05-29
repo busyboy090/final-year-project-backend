@@ -1,14 +1,14 @@
-'use strict';
+"use strict";
 
-import { DataTypes, Sequelize } from 'sequelize';
+import { DataTypes, Sequelize } from "sequelize";
 
 // Types
-import type { QueryInterface } from 'sequelize';
+import type { QueryInterface } from "sequelize";
 
 /** @type {import('sequelize-cli').Migration} */
 export default {
   up: async (queryInterface: QueryInterface) => {
-    await queryInterface.createTable('users', {
+    await queryInterface.createTable("users", {
       id: {
         type: DataTypes.INTEGER,
         allowNull: false,
@@ -32,7 +32,7 @@ export default {
         unique: true,
         validate: {
           isEmail: true,
-        }
+        },
       },
 
       password: {
@@ -43,13 +43,28 @@ export default {
       email_verified: {
         type: DataTypes.BOOLEAN,
         allowNull: false,
-        defaultValue: false
+        defaultValue: false,
+      },
+
+      phone: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
+
+      gender: {
+        type: DataTypes.ENUM("male", "female", "other"),
+        allowNull: true,
       },
 
       role: {
-        type: DataTypes.ENUM("super-admin","event-organiser","staff","student"),
+        type: DataTypes.ENUM(
+          "super-admin",
+          "event-organiser",
+          "staff",
+          "student",
+        ),
         allowNull: false,
-        defaultValue: "student"
+        defaultValue: "student",
       },
 
       is_active: {
@@ -60,36 +75,38 @@ export default {
 
       two_factor_secret: {
         type: DataTypes.STRING,
-        allowNull: true
+        allowNull: true,
       },
 
       two_factor_enabled: {
         type: DataTypes.BOOLEAN,
-        allowNull: false
+        allowNull: false,
       },
 
       two_factor_recovery_codes: {
         type: DataTypes.STRING,
-        allowNull: true
+        allowNull: true,
       },
 
       created_at: {
         allowNull: false,
         type: DataTypes.DATE,
-        defaultValue: Sequelize.literal('CURRENT_TIMESTAMP'),
+        defaultValue: Sequelize.literal("CURRENT_TIMESTAMP"),
       },
 
       updated_at: {
         allowNull: false,
         type: DataTypes.DATE,
-        defaultValue: Sequelize.literal('CURRENT_TIMESTAMP'),
+        defaultValue: Sequelize.literal("CURRENT_TIMESTAMP"),
       },
     });
   },
 
   down: async (queryInterface: QueryInterface) => {
-    await queryInterface.dropTable('users');
+    await queryInterface.dropTable("users");
 
-    await queryInterface.sequelize.query('DROP TYPE IF EXISTS "enum_users__roles";');
+    await queryInterface.sequelize.query(
+      'DROP TYPE IF EXISTS "enum_users__roles";',
+    );
   },
 };

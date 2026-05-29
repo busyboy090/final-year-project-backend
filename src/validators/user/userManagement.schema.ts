@@ -46,7 +46,7 @@ export const createUserSchema = z.object({
           : "Select a valid role (event-organiser, staff, or student)"
       }),
 
-    department_id: z.number().int().positive().optional(),
+    organisation_id: z.number().int().positive().optional(),
   }),
 });
 

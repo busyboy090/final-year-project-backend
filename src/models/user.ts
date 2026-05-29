@@ -20,6 +20,8 @@ export class User extends Model<
   declare email_verified: boolean;
   declare is_active: boolean;
   declare role: "super-admin" | "event-organiser" | "staff" | "student";
+  declare gender: "male" | "female" | "other" | null;
+  declare phone: string | null;
   declare profile_picture_url: string | null;
   declare two_factor_secret: string | null;
   declare two_factor_enabled: boolean;
@@ -87,6 +89,14 @@ export default (sequelize: Sequelize) => {
       },
       password: {
         type: DataTypes.STRING,
+        allowNull: true,
+      },
+      phone: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
+      gender: {
+        type: DataTypes.ENUM("male", "female", "other"),
         allowNull: true,
       },
       profile_picture_url: {

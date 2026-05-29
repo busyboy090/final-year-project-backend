@@ -26,6 +26,12 @@ export default {
         allowNull: false
       },
 
+      type: {
+        type:  DataTypes.ENUM("Academic","Administrative","Student Union","Support Unit","Research Unit"),
+        allowNull: false,
+        defaultValue: "Academic"
+      },
+
       faculty_id: {
         type: DataTypes.INTEGER,
         allowNull: true,
@@ -53,5 +59,7 @@ export default {
 
   down: async (queryInterface: QueryInterface) => {
     await queryInterface.dropTable('departments');
+
+    await queryInterface.sequelize.query('DROP TYPE IF EXISTS "enum_department_type";');
   },
 };

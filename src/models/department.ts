@@ -7,11 +7,14 @@ import type {
   NonAttribute
 } from 'sequelize';
 import { Faculty } from './faculty.ts';
+import type { DepartmentType } from '../types/department.d.ts';
+import { Organisation } from './organisation.ts';
 
 export class Department extends Model<InferAttributes<Department>, InferCreationAttributes<Department>> {
   declare id: CreationOptional<number>;
   declare name: string;
   declare code: string;
+  declare type: DepartmentType;
   declare faculty_id: number;
 
   // Timestamps
@@ -20,6 +23,7 @@ export class Department extends Model<InferAttributes<Department>, InferCreation
 
   // Association (Virtual Field)
   declare faculty?: NonAttribute<Faculty>;
+  declare organisations?: NonAttribute<Organisation>;
 
   static associate(models: any) {
     // A Department belongs to a single Faculty
@@ -39,6 +43,12 @@ export class Department extends Model<InferAttributes<Department>, InferCreation
     Department.hasMany(models.StaffProfile, {
       foreignKey: 'department_id',
       as: 'staff'
+    });
+
+    // A Department can have many organisation
+    Department.hasMany(models.Organisation, {
+      foreignKey: 'department_id',
+      as: 'organisations'
     });
   }
 }
@@ -60,6 +70,11 @@ export default (sequelize: Sequelize) => {
         type: DataTypes.STRING,
         allowNull: false,
         unique: true,
+      },
+      type: {
+        type:  DataTypes.ENUM("Academic","Adminstrative","Student Union","Support Unit","Research Unit"),
+        allowNull: false,
+        defaultValue: "Academic"
       },
       faculty_id: {
         type: DataTypes.INTEGER,

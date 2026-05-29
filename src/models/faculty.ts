@@ -32,6 +32,11 @@ export class Faculty extends Model<InferAttributes<Faculty>, InferCreationAttrib
       foreignKey: 'faculty_id',
       as: 'staff'
     });
+
+    Faculty.hasMany(models.Organisation, {
+      foreignKey: 'faculty_id',
+      as: 'organisations'
+    });
   }
 }
 

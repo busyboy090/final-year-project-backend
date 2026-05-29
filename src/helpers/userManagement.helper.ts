@@ -28,5 +28,9 @@ export function serializeUserRow(user: any): RegistryUserRow {
     role,
     department_id:       departmentId,
     department_name:     departmentName ?? "—",
+    organisation_id:    profile?.organisation_id ?? null,
+    organisation_name:  profile?.organisation?.name ?? "—",
+    faculty_id:       profile?.faculty_id ?? null,
+    faculty_name:     profile?.faculty?.name ?? "—",
   };
 }

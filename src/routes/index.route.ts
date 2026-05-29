@@ -12,6 +12,7 @@ import VenueRoutes from "./venue.route.ts";
 import EventRoutes from "./event/event.route.ts";
 import FacultyRoutes from "./faculty.route.ts";
 import FacilityRoutes from "./facility.route.ts";
+import OrganisationRoutes from "./organisation.route.ts";
 
 const router: Router = Router();
 
@@ -68,5 +69,8 @@ router.use("/faculties", FacultyRoutes);
 
 // Facility Routes
 router.use("/facilities", FacilityRoutes);
+
+// Organisation Routes
+router.use("/organisations", OrganisationRoutes)
 
 export default router;

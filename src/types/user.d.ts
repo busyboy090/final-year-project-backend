@@ -21,3 +21,5 @@ export type PublicUser = {
   created_at: Date;
   updated_at: Date;
 };
+
+export type Gender = "male" | "female" | "other" | null;

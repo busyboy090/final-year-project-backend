@@ -4,19 +4,35 @@ import { DepartmentService } from "../services/department.service.ts";
 export class DepartmentController {
   static async getAllDepartments(req: Request, res: Response) {
     try {
-      const { facultyId } = req.query;
-      let departments;
+      const {
+        facultyId,
+        search,
+        page = "1",
+        limit = "20",
+        type,
+      } = req.query as Record<string, string | undefined>;
 
-      if (facultyId) {
-        departments = await DepartmentService.getDepartmentsByFaculty(Number(facultyId));
-      } else {
-        departments = await DepartmentService.getAllDepartments();
-      }
+      const parsedPage = Math.max(1, parseInt(page ?? "1", 10));
+      const parsedLimit = Math.max(1, parseInt(limit ?? "20", 10));
+
+      const filters = {
+        facultyId: facultyId ? Number(facultyId) : undefined,
+        search: search?.trim() || undefined,
+        type: type?.trim() || undefined,
+        page: parsedPage,
+        limit: parsedLimit,
+      };
+
+      const { departments, total } =
+        await DepartmentService.getAllDepartments(filters);
 
       return res.status(200).json({
         success: true,
         count: departments.length,
-        data: departments,
+        total,
+        page: parsedPage,
+        limit: parsedLimit,
+        departments,
       });
     } catch (error) {
       console.error("GET_ALL_DEPARTMENTS_CONTROLLER_CRASH:", error);
@@ -35,20 +51,34 @@ export class DepartmentController {
         return res.status(201).json({
           success: true,
           message: "Department created successfully.",
-          data: result.data
+          data: result.data,
         });
       }
 
       switch (result.reason) {
         case "FACULTY_NOT_FOUND":
-          return res.status(404).json({ success: false, message: "The specified faculty does not exist." });
+          return res
+            .status(404)
+            .json({
+              success: false,
+              message: "The specified faculty does not exist.",
+            });
         case "DEPARTMENT_ALREADY_EXISTS":
-          return res.status(409).json({ success: false, message: "A department with this name or code already exists." });
+          return res
+            .status(409)
+            .json({
+              success: false,
+              message: "A department with this name or code already exists.",
+            });
         default:
-          return res.status(400).json({ success: false, message: "Failed to create department." });
+          return res
+            .status(400)
+            .json({ success: false, message: "Failed to create department." });
       }
     } catch (error) {
-      return res.status(500).json({ success: false, message: "Internal server error" });
+      return res
+        .status(500)
+        .json({ success: false, message: "Internal server error" });
     }
   }
 }

@@ -1,5 +1,5 @@
 import db from "../../models/index.ts";
-import type { UserRole } from "../../types/user.d.ts";
+import type { Gender, UserRole } from "../../types/user.d.ts";
 
 export class ProfileService {
   static async getFlattenedUserProfile(userId: number, role: UserRole) {
@@ -27,6 +27,16 @@ export class ProfileService {
       includeOptions.push({
         model: db.EventOrganiserProfile,
         as: "eventOrganiserProfile",
+        include: [
+          {
+            model: db.Organisation,
+            as: "organisation",
+            include: [
+              { model: db.Department, as: "department" },
+              { model: db.Faculty, as: "faculty" }
+            ]
+          }
+        ]
       });
     }
 
@@ -102,14 +112,16 @@ export class ProfileService {
   ) {
     const transaction = await db.sequelize.transaction();
     try {
-      const { first_name, last_name, ...profileData } = data;
+      const { first_name, last_name, phone, gender, ...profileData } = data;
       const user = await db.User.findByPk(userId, { transaction });
       if (!user) throw new Error("User not found");
 
-      if (first_name || last_name) {
+      if (first_name || last_name || phone || gender) {
         const updateObj: any = {};
         if (first_name) updateObj.first_name = first_name;
         if (last_name) updateObj.last_name = last_name;
+        if (phone) updateObj.phone = phone;
+        if (gender) updateObj.gender = gender;
         await user.update(updateObj, { transaction });
       }
 
@@ -142,38 +154,18 @@ export class ProfileService {
     return this.upsertProfile(userId, "staff", db.StaffProfile, data);
   }
 
-  static async updateEventOrganiserProfile(userId: number, data: any) {
-    return this.upsertProfile(
-      userId,
-      "event-organiser",
-      db.EventOrganiserProfile,
-      data,
-    );
-  }
-
-  static async updateAdminProfile(userId: number, data: any) {
-    return this.upsertProfile(userId, "super-admin", null, data);
-  }
-
-  static async updateAvatar(userId: number, url: string) {
-    const [affectedCount] = await db.User.update(
-      { profile_picture_url: url },
-      { where: { id: userId } },
-    );
-    if (affectedCount === 0) throw new Error("User not found.");
-    return { success: true, url };
-  }
-
   static async updatePersonalInfo(
     userId: number,
-    data: { first_name?: string; last_name?: string },
+    data: { first_name?: string; last_name?: string, gender?: Gender, phone?: string },
   ) {
-    const { first_name, last_name } = data;
+    const { first_name, last_name, gender, phone } = data;
 
     // 1. Build the update object dynamically
     const updateObj: Partial<typeof data> = {};
     if (first_name) updateObj.first_name = first_name;
     if (last_name) updateObj.last_name = last_name;
+    if (gender) updateObj.gender = gender
+    if (phone) updateObj.phone = phone;
 
     // If no data is provided, avoid a database call
     if (Object.keys(updateObj).length === 0) {
