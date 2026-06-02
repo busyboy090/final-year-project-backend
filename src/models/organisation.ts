@@ -44,6 +44,11 @@ export class Organisation extends Model<InferAttributes<Organisation>, InferCrea
       as: 'organisers',
       onDelete: 'CASCADE'
     });
+
+    Organisation.hasMany(models.Event, {
+      foreignKey: 'organization_id',
+      as: 'events'
+    });
   }
 }
 

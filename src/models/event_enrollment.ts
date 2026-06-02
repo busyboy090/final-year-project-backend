@@ -60,7 +60,7 @@ export default (sequelize: Sequelize) => {
         allowNull: false,
         references: {
           key: "id",
-          model: "models"
+          model: "events"   
         }
       },
       status: {

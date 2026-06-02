@@ -226,23 +226,29 @@ export class VenueService {
     venueId: number,
     startDate: Date,
     endDate: Date,
+    excludeEventId?: number
   ): Promise<boolean> {
-    const conflictingEvent = await db.Event.findOne({
-      where: {
-        venue: venueId,
-        status: { [Op.ne]: "rejected" },
-        [Op.or]: [
-          { start_date: { [Op.between]: [startDate, endDate] } },
-          { end_date: { [Op.between]: [startDate, endDate] } },
-          {
-            [Op.and]: [
-              { start_date: { [Op.lte]: startDate } },
-              { end_date: { [Op.gte]: endDate } },
-            ],
-          },
-        ],
-      },
-    });
+    const where: any = {
+      venue: venueId,
+      status: { [Op.ne]: "rejected" },
+      [Op.or]: [
+        { start_date: { [Op.between]: [startDate, endDate] } },
+        { end_date: { [Op.between]: [startDate, endDate] } },
+        {
+          [Op.and]: [
+            { start_date: { [Op.lte]: startDate } },
+            { end_date: { [Op.gte]: endDate } },
+          ],
+        },
+      ],
+    };
+
+    // Exclude current event from conflict check during updates
+    if (excludeEventId) {
+      where.id = { [Op.ne]: excludeEventId };
+    }
+
+    const conflictingEvent = await db.Event.findOne({ where });
     return !conflictingEvent;
   }
 

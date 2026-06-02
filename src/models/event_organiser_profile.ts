@@ -57,7 +57,7 @@ export default (sequelize: Sequelize) => {
         },
       },
       organisation_id: {
-        type: DataTypes.STRING,
+        type: DataTypes.INTEGER,
         allowNull: true,
         references: {
           model: "organisations",

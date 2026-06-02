@@ -31,7 +31,7 @@ export class Venue extends Model<InferAttributes<Venue>, InferCreationAttributes
   static associate(models: any) {
     // One venue can host many events
     Venue.hasMany(models.Event, {
-      foreignKey: 'venue',
+      foreignKey: 'venue_id',
       as: 'events'
     });
 

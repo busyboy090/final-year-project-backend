@@ -8,19 +8,21 @@ import type {
 } from 'sequelize';
 import { User } from './user.ts';
 import { Venue } from './venue.ts';
+import type { EventCategory, EventStatus } from '../types/event.d.ts';
 
 export class Event extends Model<InferAttributes<Event>, InferCreationAttributes<Event>> {
   declare id: CreationOptional<number>;
   declare title: string;
+  declare description: string;
+  declare category: EventCategory;
   declare thumbnail: string;
-  declare organizer: string;
-  declare department: string | null;
-  declare venue: number;
+  declare organization_id: number | null;
+  declare venue_id: number;
   declare start_date: Date;
   declare end_date: Date;
   declare capacity: number;
   declare created_by: number;
-  declare status: 'pending' | 'approved' | 'rejected';
+  declare status: EventStatus;
 
   // Timestamps
   declare created_at: CreationOptional<Date>;
@@ -39,8 +41,8 @@ export class Event extends Model<InferAttributes<Event>, InferCreationAttributes
 
     // 2. An event is held at a specific venue
     Event.belongsTo(models.Venue, {
-      foreignKey: 'venue',
-      as: 'eventVenue'
+      foreignKey: 'venue_id',
+      as: 'venue'
     });
 
     Event.belongsToMany(models.User, { 
@@ -48,6 +50,11 @@ export class Event extends Model<InferAttributes<Event>, InferCreationAttributes
       foreignKey: 'event_id', 
       otherKey: 'user_id',
       as: 'attendees' 
+    });
+
+    Event.belongsTo(models.Organisation, {
+      foreignKey: 'organization_id',
+      as: 'organisation'
     });
   }
 }
@@ -64,19 +71,29 @@ export default (sequelize: Sequelize) => {
         type: DataTypes.STRING,
         allowNull: false,
       },
+      description: {
+        type: DataTypes.TEXT,
+        allowNull: false
+      },
+      category: {
+        type: DataTypes.ENUM('Academic Conference', 'Workshop', 'Cultural Event', 'Sports Match', 'Exhibition/Expo', 'Social Gathering/Party'),
+        allowNull: false
+      },
       thumbnail: {
         type: DataTypes.STRING,
         allowNull: false,
       },
-      organizer: {
-        type: DataTypes.STRING,
-        allowNull: false,
-      },
-      department: {
-        type: DataTypes.STRING,
+      organization_id: {
+        type: DataTypes.INTEGER,
         allowNull: true,
+        references: {
+          key: "id",
+          model: "organisations"
+        },
+        onDelete: "SET NULL",
+        onUpdate: "CASCADE"
       },
-      venue: {
+      venue_id: {
         type: DataTypes.INTEGER,
         allowNull: false,
         references: {
@@ -106,7 +123,7 @@ export default (sequelize: Sequelize) => {
         }
       },
       status: {
-        type: DataTypes.ENUM('pending', 'approved', 'rejected'),
+        type: DataTypes.ENUM('pending', 'approved', 'rejected', 'cancelled'),
         allowNull: false,
         defaultValue: 'pending'
       },

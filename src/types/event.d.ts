@@ -1,0 +1,2 @@
+export type EventCategory = 'Academic Conference' | 'Workshop' | 'Cultural Event' | 'Sports Match' | 'Exhibition/Expo' | 'Social Gathering/Party';
+export type EventStatus = 'pending' | 'approved' | 'rejected' | 'cancelled';

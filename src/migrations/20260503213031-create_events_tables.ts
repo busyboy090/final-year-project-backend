@@ -1,14 +1,14 @@
-'use strict';
+"use strict";
 
-import { DataTypes, Sequelize } from 'sequelize';
+import { DataTypes, Sequelize } from "sequelize";
 
 // Types
-import type { QueryInterface } from 'sequelize';
+import type { QueryInterface } from "sequelize";
 
 /** @type {import('sequelize-cli').Migration} */
 export default {
   up: async (queryInterface: QueryInterface) => {
-    await queryInterface.createTable('events', {
+    await queryInterface.createTable("events", {
       id: {
         type: DataTypes.INTEGER,
         allowNull: false,
@@ -21,30 +21,53 @@ export default {
         allowNull: false,
       },
 
+      description: {
+        type: DataTypes.TEXT,
+        allowNull: false,
+      },
+
+      category: {
+        type: DataTypes.ENUM(
+          "Academic Conference",
+          "Workshop",
+          "Cultural Event",
+          "Sports Match",
+          "Exhibition/Expo",
+          "Social Gathering/Party",
+        ),
+        allowNull: false,
+      },
+
+      duration: {
+        type: DataTypes.INTEGER,
+        allowNull: false
+      },
+
       thumbnail: {
         type: DataTypes.STRING,
         allowNull: false,
       },
 
-      organizer: {
-        type: DataTypes.STRING,
-        allowNull: false,
-      },
-
-      department: {
-        type: DataTypes.STRING,
-        allowNull: true,
-      },
-
-      venue: {
+      organization_id: {
         type: DataTypes.INTEGER,
-        allowNull: false,
+        allowNull: true,
         references: {
           key: "id",
-          model: "venues"
+          model: "organisations",
         },
-        onDelete: "CASCADE",
-        onUpdate: "CASCADE"
+        onDelete: "SET NULL",
+        onUpdate: "CASCADE",
+      },
+
+      venue_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        references: {
+          key: "id",
+          model: "venues",
+        },
+        onDelete: "SET NULL",
+        onUpdate: "CASCADE",
       },
 
       start_date: {
@@ -68,33 +91,33 @@ export default {
         allowNull: false,
         references: {
           key: "id",
-          model: "users"
+          model: "users",
         },
         onDelete: "CASCADE",
-        onUpdate: "CASCADE"
+        onUpdate: "CASCADE",
       },
 
       status: {
-        type: DataTypes.ENUM('pending', 'approved', 'rejected'),
+        type: DataTypes.ENUM("pending", "approved", "rejected", "cancelled"),
         allowNull: false,
-        defaultValue: 'pending'
+        defaultValue: "pending",
       },
 
       created_at: {
         allowNull: false,
         type: DataTypes.DATE,
-        defaultValue: Sequelize.literal('CURRENT_TIMESTAMP'),
+        defaultValue: Sequelize.literal("CURRENT_TIMESTAMP"),
       },
 
       updated_at: {
         allowNull: false,
         type: DataTypes.DATE,
-        defaultValue: Sequelize.literal('CURRENT_TIMESTAMP'),
+        defaultValue: Sequelize.literal("CURRENT_TIMESTAMP"),
       },
     });
   },
 
   down: async (queryInterface: QueryInterface) => {
-    await queryInterface.dropTable('events');
+    await queryInterface.dropTable("events");
   },
 };
