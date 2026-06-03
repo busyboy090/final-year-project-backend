@@ -1,7 +1,7 @@
 import db from "../../models/index.ts";
 import { VenueService } from "../venue.service.ts";
 import { CloudinaryHelper } from "../../helpers/cloudinary.helper.ts";
-import { Op, fn, col, Sequelize } from "sequelize";
+import { Op, Sequelize } from "sequelize";
 
 // Extended EventResult type to safely handle statistical metrics payloads
 type EventResult = {
@@ -304,10 +304,7 @@ export class EventService {
   /**
    * Progresses state parameters for administrative oversight operations
    */
-  static async updateEventStatus(
-    eventId: number,
-    status: "approved" | "rejected",
-  ): Promise<EventResult> {
+  static async updateEventStatus(eventId: number, status: 'approved' | 'rejected'): Promise<EventResult> {
     try {
       const event = await db.Event.findByPk(eventId);
       if (!event) return { ok: false, reason: "EVENT_NOT_FOUND" };
@@ -321,149 +318,87 @@ export class EventService {
   }
 
   /**
-   * Halts workflows and frees up venue reservations
+   * Cancels an event (soft delete)
    */
-  static async cancelEvent(
-    eventId: number,
-    userId: number,
-  ): Promise<EventResult> {
+  static async cancelEvent(eventId: number, userId: number): Promise<EventResult> {
     try {
       const event = await db.Event.findByPk(eventId);
       if (!event) return { ok: false, reason: "EVENT_NOT_FOUND" };
 
-      if (event.created_by !== userId)
-        return { ok: false, reason: "UNAUTHORIZED" };
+      // Only event creator or admin can cancel
+      if (event.created_by !== userId) return { ok: false, reason: "UNAUTHORIZED" };
 
-      await event.update({ status: "cancelled" });
-      return { ok: true, data: event };
+      // Update status to rejected (cancelled state)
+      await event.update({ status: 'rejected' });
+
+      // TODO: Send cancellation notifications to all enrolled users
+      // const enrollments = await db.EventEnrollment.findAll({ where: { event_id: eventId } });
+      // for (const enrollment of enrollments) {
+      //   await sendCancellationEmail(enrollment.user_id, event);
+      // }
+
+      return { ok: true, data: { message: "Event cancelled successfully", event } };
     } catch (error) {
       console.error("CANCEL_EVENT_SERVICE_ERROR:", error);
       throw error;
     }
   }
 
+  /**
+   * Deletes an event (soft delete by marking as rejected)
+   * or hard delete if no enrollments
+   */
+  static async deleteEvent(eventId: number, userId: number): Promise<EventResult> {
+    try {
+      const event = await db.Event.findByPk(eventId);
+      if (!event) return { ok: false, reason: "EVENT_NOT_FOUND" };
+
+      // Only event creator or admin can delete
+      if (event.created_by !== userId) return { ok: false, reason: "UNAUTHORIZED" };
+
+      // Check if event has enrollments
+      const enrollmentCount = await db.EventEnrollment.count({ where: { event_id: eventId } });
+      
+      if (enrollmentCount > 0) {
+        // Soft delete: just mark as rejected
+        await event.update({ status: 'rejected' });
+        return { ok: true, data: { message: "Event cancelled. Enrollments preserved.", event } };
+      } else {
+        // Hard delete if no enrollments
+        await event.destroy();
+        return { ok: true, data: { message: "Event permanently deleted." } };
+      }
+    } catch (error) {
+      console.error("DELETE_EVENT_SERVICE_ERROR:", error);
+      throw error;
+    }
+  }
 
   /**
-   * Aggregates key system metrics for dashboards, including user demographics (staff vs students).
+   * Get event statistics for organizer/admin dashboard
    */
   static async getEventStats(userId?: number): Promise<EventResult> {
     try {
-      const eventWhereFilter = userId ? { created_by: userId } : {};
+      const where: any = {};
+      if (userId) {
+        where.created_by = userId;
+      }
 
-      // 1. Core Event Volumetrics and Status Breakdown
-      const statusCounts = await db.Event.findAll({
-        where: eventWhereFilter,
-        attributes: ["status", [fn("COUNT", col("id")), "count"]],
-        group: ["status"],
-        raw: true
-      }) as unknown as Array<{ status: string; count: number }>;
-
-      let totalEvents = 0;
-      const statusBreakdown: Record<string, number> = { pending: 0, approved: 0, rejected: 0, cancelled: 0 };
-      statusCounts.forEach(item => {
-        const count = Number(item.count);
-        statusBreakdown[item.status] = count;
-        totalEvents += count;
-      });
-
-      // 2. Aggregate Enrollment Volume and Real Attendance Ratios
-      const enrollmentStats = await db.EventEnrollment.findAll({
-        attributes: [
-          [fn("COUNT", col("id")), "total"],
-          [fn("SUM", Sequelize.literal("CASE WHEN status = 'attended' THEN 1 ELSE 0 END")), "attendedCount"]
-        ],
-        include: [{ model: db.Event, attributes: [], where: eventWhereFilter, required: true }],
-        raw: true
-      }) as unknown as Array<{ total: string; attendedCount: string }>;
-
-      const totalEnrollments = Number(enrollmentStats[0]?.total || 0);
-      const attendedCount = Number(enrollmentStats[0]?.attendedCount || 0);
-      const attendanceRate = totalEnrollments > 0 ? `${((attendedCount / totalEnrollments) * 100).toFixed(1)}%` : "0.0%";
-
-      // 3. Leaderboard: Top 5 Highest Performing Events
-      const popularEventsRaw = await db.EventEnrollment.findAll({
-        attributes: ["event_id", [fn("COUNT", col("event_enrollments.id")), "enrollmentCount"]],
-        include: [{ model: db.Event, as: "event", attributes: ["title", "capacity"], where: eventWhereFilter, required: true }],
-        where: { status: { [Op.not]: "cancelled" } },
-        group: ["event_id", "event.id", "event.title", "event.capacity"],
-        order: [[fn("COUNT", col("event_enrollments.id")), "DESC"]],
-        limit: 5,
-        raw: true
-      }) as unknown as Array<{ event_id: number; "event.title": string; "event.capacity": number; enrollmentCount: string; }>;
-
-      const popularEvents = popularEventsRaw.map(item => {
-        const enrollments = Number(item.enrollmentCount);
-        const capacity = Number(item["event.capacity"] || 0);
-        return {
-          id: item.event_id,
-          title: item["event.title"],
-          capacity,
-          enrollmentCount: enrollments,
-          fillPercentage: capacity > 0 ? `${((enrollments / capacity) * 100).toFixed(1)}%` : "0.0%"
-        };
-      });
-
-      // 4. Overall Portfolio Capacity Metrics
-      const portfolioCapacities = await db.Event.findAll({
-        where: { ...eventWhereFilter, status: "approved" },
-        attributes: ["id", "capacity", [Sequelize.literal(`(SELECT COUNT(*) FROM event_enrollments AS e WHERE e.event_id = "Event".id AND e.status != 'cancelled')`), "activeEnrollments"]],
-        raw: true
-      }) as unknown as Array<{ id: number; capacity: number; activeEnrollments: string }>;
-
-      let totalCapacityPool = 0, totalActiveSeatsFilled = 0;
-      portfolioCapacities.forEach(event => {
-        totalCapacityPool += Number(event.capacity || 0);
-        totalActiveSeatsFilled += Number(event.activeEnrollments || 0);
-      });
-      const averagePortfolioFillPercentage = totalCapacityPool > 0 ? `${((totalActiveSeatsFilled / totalCapacityPool) * 100).toFixed(1)}%` : "0.0%";
-
-      // 5. NEW: User Demographics Breakdown (Staff vs Student)
-      const demographicStats = await db.EventEnrollment.findAll({
-        attributes: [
-          // Total enrollments by role
-          [fn("SUM", Sequelize.literal("CASE WHEN \"user\".\"role\" = 'student' THEN 1 ELSE 0 END")), "studentEnrollments"],
-          [fn("SUM", Sequelize.literal("CASE WHEN \"user\".\"role\" = 'staff' THEN 1 ELSE 0 END")), "staffEnrollments"],
-          // Attended instances by role
-          [fn("SUM", Sequelize.literal("CASE WHEN \"user\".\"role\" = 'student' AND event_enrollments.status = 'attended' THEN 1 ELSE 0 END")), "studentAttended"],
-          [fn("SUM", Sequelize.literal("CASE WHEN \"user\".\"role\" = 'staff' AND event_enrollments.status = 'attended' THEN 1 ELSE 0 END")), "staffAttended"]
-        ],
-        include: [
-          { model: db.Event, attributes: [], where: eventWhereFilter, required: true },
-          { model: db.User, as: "user", attributes: [], required: true } // Joins your user table
-        ],
-        raw: true
-      }) as unknown as Array<{ studentEnrollments: string; staffEnrollments: string; studentAttended: string; staffAttended: string; }>;
-
-      const studentEnrolled = Number(demographicStats[0]?.studentEnrollments || 0);
-      const staffEnrolled = Number(demographicStats[0]?.staffEnrollments || 0);
-      const studentAttended = Number(demographicStats[0]?.studentAttended || 0);
-      const staffAttended = Number(demographicStats[0]?.staffAttended || 0);
-
-      const demographics = {
-        student: {
-          enrollments: studentEnrolled,
-          attendanceRate: studentEnrolled > 0 ? `${((studentAttended / studentEnrolled) * 100).toFixed(1)}%` : "0.0%"
-        },
-        staff: {
-          enrollments: staffEnrolled,
-          attendanceRate: staffEnrolled > 0 ? `${((staffAttended / staffEnrolled) * 100).toFixed(1)}%` : "0.0%"
-        }
+      // Get all events for the user or all events if admin
+      const events = await db.Event.findAll({ where });
+      
+      const stats = {
+        total_events: events.length,
+        pending_approval: events.filter((e: any) => e.status === 'pending').length,
+        approved_events: events.filter((e: any) => e.status === 'approved').length,
+        rejected_events: events.filter((e: any) => e.status === 'rejected').length,
+        upcoming_events: events.filter((e: any) => new Date(e.start_date) > new Date()).length,
+        past_events: events.filter((e: any) => new Date(e.end_date) < new Date()).length,
       };
 
-      return {
-        ok: true,
-        data: {
-          totalEvents,
-          statusBreakdown,
-          totalEnrollments,
-          attendanceRate,
-          averagePortfolioFillPercentage,
-          demographics, // New demographics object added here
-          popularEvents
-        }
-      };
+      return { ok: true, data: stats };
     } catch (error) {
-      console.error("GET_EVENT_STATS_SERVICE_ERROR:", error);
+      console.error("GET_EVENT_STATS_ERROR:", error);
       throw error;
     }
   }

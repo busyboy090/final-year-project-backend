@@ -56,4 +56,85 @@ export class EnrollmentService {
       }]
     });
   }
+
+  /**
+   * Mark user as checked-in to an event
+   */
+  static async checkInToEvent(enrollmentId: number, userId: number): Promise<EnrollmentResult> {
+    try {
+      const enrollment = await db.EventEnrollment.findByPk(enrollmentId);
+      if (!enrollment) return { ok: false, reason: "EVENT_NOT_FOUND" };
+
+      // Verify ownership
+      if (enrollment.user_id !== userId) {
+        return { ok: false, reason: "INTERNAL_SERVER_ERROR" };
+      }
+
+      // Update check-in time
+      await enrollment.update({
+        check_in_time: new Date(),
+        status: 'attended'
+      });
+
+      return { ok: true, data: enrollment };
+    } catch (error) {
+      console.error("CHECK_IN_SERVICE_ERROR:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Cancel enrollment (unenroll from event)
+   */
+  static async cancelEnrollment(enrollmentId: number, userId: number): Promise<EnrollmentResult> {
+    try {
+      const enrollment = await db.EventEnrollment.findByPk(enrollmentId);
+      if (!enrollment) return { ok: false, reason: "EVENT_NOT_FOUND" };
+
+      // Verify ownership
+      if (enrollment.user_id !== userId) {
+        return { ok: false, reason: "INTERNAL_SERVER_ERROR" };
+      }
+
+      // Update status to cancelled
+      await enrollment.update({ status: 'cancelled' });
+
+      return { ok: true, data: { message: "Enrollment cancelled", enrollment } };
+    } catch (error) {
+      console.error("CANCEL_ENROLLMENT_SERVICE_ERROR:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get event attendance statistics
+   */
+  static async getEventAttendanceStats(eventId: number): Promise<EnrollmentResult> {
+    try {
+      const event = await db.Event.findByPk(eventId);
+      if (!event) return { ok: false, reason: "EVENT_NOT_FOUND" };
+
+      const totalEnrollments = await db.EventEnrollment.count({ where: { event_id: eventId } });
+      const attended = await db.EventEnrollment.count({ 
+        where: { event_id: eventId, status: 'attended' } 
+      });
+      const cancelled = await db.EventEnrollment.count({ 
+        where: { event_id: eventId, status: 'cancelled' } 
+      });
+
+      const stats = {
+        event_id: eventId,
+        total_enrolled: totalEnrollments,
+        total_attended: attended,
+        total_cancelled: cancelled,
+        no_show: totalEnrollments - attended - cancelled,
+        attendance_rate: totalEnrollments > 0 ? ((attended / totalEnrollments) * 100).toFixed(2) : 0
+      };
+
+      return { ok: true, data: stats };
+    } catch (error) {
+      console.error("ATTENDANCE_STATS_SERVICE_ERROR:", error);
+      throw error;
+    }
+  }
 }

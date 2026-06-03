@@ -42,4 +42,74 @@ export class EnrollmentController {
       return res.status(500).json({ success: false, message: "Internal server error" });
     }
   }
+
+  /**
+   * Mark user as checked-in to an event
+   */
+  static async checkIn(req: Request, res: Response) {
+    try {
+      const enrollmentId = Number(req.params.enrollmentId);
+      const userId = Number(req.user?.userId);
+      
+      const result = await EnrollmentService.checkInToEvent(enrollmentId, userId);
+
+      if (result.ok) {
+        return res.status(200).json({
+          success: true,
+          message: "Successfully checked in to event",
+          data: result.data
+        });
+      }
+
+      return res.status(404).json({ success: false, message: "Enrollment not found" });
+    } catch (error) {
+      return res.status(500).json({ success: false, message: "Internal server error" });
+    }
+  }
+
+  /**
+   * Cancel enrollment (unenroll from event)
+   */
+  static async cancelEnrollment(req: Request, res: Response) {
+    try {
+      const enrollmentId = Number(req.params.enrollmentId);
+      const userId = Number(req.user?.userId);
+      
+      const result = await EnrollmentService.cancelEnrollment(enrollmentId, userId);
+
+      if (result.ok) {
+        return res.status(200).json({
+          success: true,
+          message: "Enrollment cancelled successfully",
+          data: result.data
+        });
+      }
+
+      return res.status(404).json({ success: false, message: "Enrollment not found" });
+    } catch (error) {
+      return res.status(500).json({ success: false, message: "Internal server error" });
+    }
+  }
+
+  /**
+   * Get attendance statistics for an event
+   */
+  static async getAttendanceStats(req: Request, res: Response) {
+    try {
+      const eventId = Number(req.params.eventId);
+      
+      const result = await EnrollmentService.getEventAttendanceStats(eventId);
+
+      if (result.ok) {
+        return res.status(200).json({
+          success: true,
+          data: result.data
+        });
+      }
+
+      return res.status(404).json({ success: false, message: "Event not found" });
+    } catch (error) {
+      return res.status(500).json({ success: false, message: "Internal server error" });
+    }
+  }
 }

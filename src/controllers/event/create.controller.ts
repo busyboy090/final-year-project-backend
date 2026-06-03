@@ -129,6 +129,59 @@ export class EventController {
   }
 
   /**
+   * Retrieves a single event by ID
+   */
+  static async getById(req: Request, res: Response) {
+    try {
+      const eventId = Number(req.params.id);
+      const result = await EventService.getEventById(eventId);
+
+      if (result.ok) {
+        return res.status(200).json({ success: true, data: result.data });
+      }
+
+      return res.status(404).json({ success: false, message: "Event not found" });
+    } catch (error) {
+      return res.status(500).json({ success: false, message: "Internal server error" });
+    }
+  }
+
+  /**
+   * Deletes an event (hard delete if no enrollments, soft delete otherwise)
+   */
+  static async delete(req: Request, res: Response) {
+    try {
+      const userId = Number(req.user?.userId);
+      const result = await EventService.deleteEvent(
+        Number(req.params.id),
+        userId,
+      );
+
+      if (result.ok)
+        return res
+          .status(200)
+          .json({
+            success: true,
+            message: result.data.message,
+            data: result.data,
+          });
+      
+      const statusMap: Record<string, number> = {
+        EVENT_NOT_FOUND: 404,
+        UNAUTHORIZED: 403,
+      };
+      
+      return res
+        .status(statusMap[result.reason!] || 400)
+        .json({ success: false, message: result.reason });
+    } catch (error) {
+      return res
+        .status(500)
+        .json({ success: false, message: "Internal server error" });
+    }
+  }
+
+  /**
    * Administrative Workflow updates
    */
   static async updateStatus(req: Request, res: Response) {
