@@ -14,9 +14,10 @@ export class Event extends Model<InferAttributes<Event>, InferCreationAttributes
   declare id: CreationOptional<number>;
   declare title: string;
   declare description: string;
+  declare duration: number;
   declare category: EventCategory;
   declare thumbnail: string;
-  declare organization_id: number | null;
+  declare organisation_id: number | null;
   declare venue_id: number;
   declare start_date: Date;
   declare end_date: Date;
@@ -53,7 +54,7 @@ export class Event extends Model<InferAttributes<Event>, InferCreationAttributes
     });
 
     Event.belongsTo(models.Organisation, {
-      foreignKey: 'organization_id',
+      foreignKey: 'organisation_id',
       as: 'organisation'
     });
   }
@@ -75,6 +76,10 @@ export default (sequelize: Sequelize) => {
         type: DataTypes.TEXT,
         allowNull: false
       },
+      duration: {
+        type: DataTypes.INTEGER,
+        allowNull: false
+      },
       category: {
         type: DataTypes.ENUM('Academic Conference', 'Workshop', 'Cultural Event', 'Sports Match', 'Exhibition/Expo', 'Social Gathering/Party'),
         allowNull: false
@@ -83,7 +88,7 @@ export default (sequelize: Sequelize) => {
         type: DataTypes.STRING,
         allowNull: false,
       },
-      organization_id: {
+      organisation_id: {
         type: DataTypes.INTEGER,
         allowNull: true,
         references: {

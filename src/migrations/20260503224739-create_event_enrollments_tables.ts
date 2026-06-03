@@ -14,38 +14,34 @@ export default {
         autoIncrement: true,
       },
 
-      // Link to the User (The Student or Staff member)
       user_id: {
         type: DataTypes.INTEGER,
         allowNull: false,
         references: {
-          model: 'users', // Name of the target table
+          model: 'users',
           key: 'id',
         },
         onUpdate: 'CASCADE',
         onDelete: 'CASCADE',
       },
 
-      // Link to the Event
       event_id: {
         type: DataTypes.INTEGER,
         allowNull: false,
         references: {
-          model: 'events', // Name of the target table
+          model: 'events',
           key: 'id',
         },
         onUpdate: 'CASCADE',
         onDelete: 'CASCADE',
       },
 
-      // Enrollment Status
       status: {
         type: DataTypes.ENUM('confirmed', 'cancelled', 'attended'),
         allowNull: false,
         defaultValue: 'confirmed',
       },
 
-      // Integration for Vision Detect: Store when they were spotted
       check_in_time: {
         type: DataTypes.DATE,
         allowNull: true,

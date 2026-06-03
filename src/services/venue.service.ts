@@ -229,7 +229,7 @@ export class VenueService {
     excludeEventId?: number
   ): Promise<boolean> {
     const where: any = {
-      venue: venueId,
+      venue_id: venueId,
       status: { [Op.ne]: "rejected" },
       [Op.or]: [
         { start_date: { [Op.between]: [startDate, endDate] } },

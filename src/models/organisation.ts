@@ -46,7 +46,7 @@ export class Organisation extends Model<InferAttributes<Organisation>, InferCrea
     });
 
     Organisation.hasMany(models.Event, {
-      foreignKey: 'organization_id',
+      foreignKey: 'organisation_id',
       as: 'events'
     });
   }

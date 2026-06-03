@@ -48,7 +48,7 @@ export default {
         allowNull: false,
       },
 
-      organization_id: {
+      organisation_id: {
         type: DataTypes.INTEGER,
         allowNull: true,
         references: {
