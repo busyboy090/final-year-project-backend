@@ -29,6 +29,7 @@ interface PaginatedDepartments {
 interface CreateDepartmentData {
   name:       string;
   code:       string;
+  type:       string;
   facultyId?: number;
 }
 
@@ -84,7 +85,12 @@ export class DepartmentService {
       });
       if (existing) return { ok: false, reason: "DEPARTMENT_ALREADY_EXISTS" };
 
-      const newDept = await db.Department.create(data);
+      const newDept = await db.Department.create({
+        name: data.name,
+        code: data.code,
+        type: data.type,
+        faculty_id: data.facultyId ?? null,
+      });
       return { ok: true, data: newDept };
     } catch (error) {
       console.error("CREATE_DEPARTMENT_SERVICE_ERROR:", error);

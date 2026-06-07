@@ -7,6 +7,8 @@ export const listUsersQuerySchema = z.object({
     search: z.string().trim().optional(),
     role: z.string().trim().optional(),
     department_id: z.coerce.number().int().positive().optional(),
+    faculty_id: z.coerce.number().int().positive().optional(),
+    organisation_id: z.coerce.number().int().positive().optional(),
   }),
 });
 

@@ -12,6 +12,12 @@ export class EventController {
       const userId = Number(req.user?.userId);
       const form = req.body;
 
+      if (!thumbnailFile) {
+        return res
+          .status(400)
+          .json({ success: false, message: "Event thumbnail is required" });
+      }
+
       // 1. Unify discrete date and time strings into proper JavaScript Date instances
       const start = new Date(`${form.startDate}T${form.startTime}:00`);
       const end = new Date(`${form.endDate}T${form.endTime}:00`);
@@ -48,6 +54,7 @@ export class EventController {
       const errorMap: Record<string, number> = {
         VENUE_NOT_FOUND: 404,
         VENUE_UNAVAILABLE: 409,
+        CAPACITY_EXCEEDS_VENUE_LIMIT: 409,
         INVALID_DATE_RANGE: 400,
       };
 
@@ -246,7 +253,7 @@ export class EventController {
     try {
       // 1. Identify context. If an organizer is logged in, restrict stats to their metrics.
       // If an Admin logs in, they might pass a specific ?userId=X or leave it blank for global overview.
-      const loggedInUserId = req.user?.id;
+      const loggedInUserId = Number(req.user?.userId);
       const loggedInUserRole = req.user?.role; // e.g., 'admin', 'organiser'
 
       let targetUserId: number | undefined = undefined;

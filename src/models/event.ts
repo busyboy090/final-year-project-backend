@@ -31,7 +31,7 @@ export class Event extends Model<InferAttributes<Event>, InferCreationAttributes
 
   // Associations (Virtual Fields)
   declare creator?: NonAttribute<User>;
-  declare eventVenue?: NonAttribute<Venue>;
+  declare venue?: NonAttribute<Venue>;
 
   static associate(models: any) {
     // 1. An event is created by a user (Staff/Student/Admin)

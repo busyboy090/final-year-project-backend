@@ -110,7 +110,12 @@ export default (sequelize: Sequelize) => {
         },
       },
       role: {
-        type: DataTypes.ENUM("admin", "organiser", "staff", "student"),
+        type: DataTypes.ENUM(
+          "super-admin",
+          "event-organiser",
+          "staff",
+          "student",
+        ),
         allowNull: false,
         defaultValue: "student",
       },

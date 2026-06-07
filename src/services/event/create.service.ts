@@ -171,6 +171,9 @@ export class EventService {
 
       if (filters.organisation_id) where.organisation_id = filters.organisation_id;
       if (filters.venue_id) where.venue_id = filters.venue_id;
+      if (filters.created_by || filters.creator_by) {
+        where.created_by = Number(filters.created_by || filters.creator_by);
+      }
 
       if (filters.date) {
         where.start_date = new Date(filters.date);
@@ -328,8 +331,7 @@ export class EventService {
       // Only event creator or admin can cancel
       if (event.created_by !== userId) return { ok: false, reason: "UNAUTHORIZED" };
 
-      // Update status to rejected (cancelled state)
-      await event.update({ status: 'rejected' });
+      await event.update({ status: 'cancelled' });
 
       // TODO: Send cancellation notifications to all enrolled users
       // const enrollments = await db.EventEnrollment.findAll({ where: { event_id: eventId } });
@@ -360,8 +362,7 @@ export class EventService {
       const enrollmentCount = await db.EventEnrollment.count({ where: { event_id: eventId } });
       
       if (enrollmentCount > 0) {
-        // Soft delete: just mark as rejected
-        await event.update({ status: 'rejected' });
+        await event.update({ status: 'cancelled' });
         return { ok: true, data: { message: "Event cancelled. Enrollments preserved.", event } };
       } else {
         // Hard delete if no enrollments
@@ -379,21 +380,58 @@ export class EventService {
    */
   static async getEventStats(userId?: number): Promise<EventResult> {
     try {
-      const where: any = {};
-      if (userId) {
-        where.created_by = userId;
-      }
-
-      // Get all events for the user or all events if admin
-      const events = await db.Event.findAll({ where });
+      const baseWhere: any = userId ? { created_by: userId } : {};
+      const now = new Date();
+      const activeStatuses = ["pending", "approved"];
       
+      const [
+        totalEvents,
+        pendingApproval,
+        approvedEvents,
+        rejectedEvents,
+        cancelledEvents,
+        upcomingEvents,
+        activeEvents,
+        pastEvents,
+      ] = await Promise.all([
+        db.Event.count({ where: baseWhere }),
+        db.Event.count({ where: { ...baseWhere, status: "pending" } }),
+        db.Event.count({ where: { ...baseWhere, status: "approved" } }),
+        db.Event.count({ where: { ...baseWhere, status: "rejected" } }),
+        db.Event.count({ where: { ...baseWhere, status: "cancelled" } }),
+        db.Event.count({
+          where: {
+            ...baseWhere,
+            status: { [Op.in]: activeStatuses },
+            start_date: { [Op.gt]: now },
+          },
+        }),
+        db.Event.count({
+          where: {
+            ...baseWhere,
+            status: "approved",
+            start_date: { [Op.lte]: now },
+            end_date: { [Op.gte]: now },
+          },
+        }),
+        db.Event.count({
+          where: {
+            ...baseWhere,
+            status: "approved",
+            end_date: { [Op.lt]: now },
+          },
+        }),
+      ]);
+
       const stats = {
-        total_events: events.length,
-        pending_approval: events.filter((e: any) => e.status === 'pending').length,
-        approved_events: events.filter((e: any) => e.status === 'approved').length,
-        rejected_events: events.filter((e: any) => e.status === 'rejected').length,
-        upcoming_events: events.filter((e: any) => new Date(e.start_date) > new Date()).length,
-        past_events: events.filter((e: any) => new Date(e.end_date) < new Date()).length,
+        total_events: totalEvents,
+        pending_approval: pendingApproval,
+        approved_events: approvedEvents,
+        rejected_events: rejectedEvents,
+        cancelled_events: cancelledEvents,
+        upcoming_events: upcomingEvents,
+        active_events: activeEvents,
+        past_events: pastEvents,
       };
 
       return { ok: true, data: stats };

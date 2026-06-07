@@ -1,5 +1,11 @@
 import { z } from 'zod';
 
+const multipartStringArray = z.preprocess((value) => {
+  if (value === undefined || value === null || value === '') return [];
+  return Array.isArray(value) ? value : [value];
+}, z.array(z.coerce.string().min(1, "Feature cannot be empty"))
+  .nonempty("At least one venue feature is required"));
+
 const venueBody = z.object({
   name: z.string({
     error: (issue) => ({
@@ -31,13 +37,15 @@ const venueBody = z.object({
     })
   }).min(5, "Please provide a more detailed location description").trim(),
 
-  // Ensures features like "Projector" or "AC" are logged as an array
-  features: z.array(z.string().min(1, "Feature cannot be empty"))
-    .nonempty("At least one venue feature is required"),
+  // Ensures multipart facility IDs are validated consistently as an array.
+  features: multipartStringArray,
 
   // Flexible for Multer buffers or Cloudinary URLs
   thumbnail: z.any().optional(),
-  images: z.any().array().default([]),
+  images: z.preprocess((value) => {
+    if (value === undefined || value === null || value === '') return [];
+    return Array.isArray(value) ? value : [value];
+  }, z.array(z.any()).default([])),
 });
 
 export const createVenueSchema = z.object({ body: venueBody });

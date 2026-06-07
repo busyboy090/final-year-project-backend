@@ -72,13 +72,13 @@ export default (sequelize: Sequelize) => {
         unique: true,
       },
       type: {
-        type:  DataTypes.ENUM("Academic","Adminstrative","Student Union","Support Unit","Research Unit"),
+        type:  DataTypes.ENUM("Academic","Administrative","Student Union","Support Unit","Research Unit"),
         allowNull: false,
         defaultValue: "Academic"
       },
       faculty_id: {
         type: DataTypes.INTEGER,
-        allowNull: false,
+        allowNull: true,
         references: {
           model: 'faculties',
           key: 'id'

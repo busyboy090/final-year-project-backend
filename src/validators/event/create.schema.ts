@@ -1,5 +1,35 @@
 import { z } from "zod";
 
+const positiveIntegerString = (field: string, min = 1) =>
+  z
+    .string({
+      error: (issue) => ({
+        message:
+          issue.input === undefined
+            ? `${field} is required`
+            : `${field} must be a valid number`,
+      }),
+    })
+    .trim()
+    .refine((value) => /^[1-9]\d*$/.test(value), `${field} must be a positive whole number`)
+    .refine((value) => Number(value) >= min, `${field} must be at least ${min}`);
+
+const validDateTimeRange = (data: {
+  startDate?: string;
+  startTime?: string;
+  endDate?: string;
+  endTime?: string;
+}) => {
+  const start = new Date(`${data.startDate}T${data.startTime}:00`);
+  const end = new Date(`${data.endDate}T${data.endTime}:00`);
+
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    return false;
+  }
+
+  return end > start;
+};
+
 /**
  * Base Event Body Fields Definition matching React EventFormValues
  */
@@ -19,23 +49,9 @@ const eventBodyFields = z.object({
   description: z.string().min(1, "Description is required"),
 
   // Synchronized field name from selectedVenue to venue_id
-  venue_id: z.string({
-    error: (issue) => ({
-      message:
-        issue.input === undefined
-          ? "Venue selection is required"
-          : "Venue must be a valid string ID",
-    }),
-  }),
+  venue_id: positiveIntegerString("Venue selection"),
 
-  capacity: z.string({
-    error: (issue) => ({
-      message:
-        issue.input === undefined
-          ? "Capacity is required"
-          : "Capacity must be a string representation of a number",
-    }),
-  }),
+  capacity: positiveIntegerString("Capacity", 5),
 
   category: z.enum(
     [
@@ -58,10 +74,10 @@ const eventBodyFields = z.object({
 
   thumbnail: z.any(),
 
-  startDate: z.string({ error: () => ({ message: "Start date is required" }) }),
-  startTime: z.string({ error: () => ({ message: "Start time is required" }) }),
-  endDate: z.string({ error: () => ({ message: "End date is required" }) }),
-  endTime: z.string({ error: () => ({ message: "End time is required" }) }),
+  startDate: z.string({ error: () => ({ message: "Start date is required" }) }).min(1, "Start date is required"),
+  startTime: z.string({ error: () => ({ message: "Start time is required" }) }).min(1, "Start time is required"),
+  endDate: z.string({ error: () => ({ message: "End date is required" }) }).min(1, "End date is required"),
+  endTime: z.string({ error: () => ({ message: "End time is required" }) }).min(1, "End time is required"),
 });
 
 /**
@@ -69,11 +85,7 @@ const eventBodyFields = z.object({
  */
 export const eventSchema = z.object({
   body: eventBodyFields.refine(
-    (data) => {
-      const start = new Date(`${data.startDate}T${data.startTime}:00`);
-      const end = new Date(`${data.endDate}T${data.endTime}:00`);
-      return end > start;
-    },
+    validDateTimeRange,
     {
       message: "End date and time must be after the start date and time",
       path: ["endDate"],

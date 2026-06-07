@@ -21,12 +21,21 @@ export class EnrollmentService {
       const existing = await db.EventEnrollment.findOne({
         where: { event_id: eventId, user_id: userId }
       });
-      if (existing) return { ok: false, reason: "ALREADY_ENROLLED" };
+      if (existing && existing.status !== "cancelled") {
+        return { ok: false, reason: "ALREADY_ENROLLED" };
+      }
 
       // 3. Check venue capacity limits
-      const count = await db.EventEnrollment.count({ where: { event_id: eventId } });
+      const count = await db.EventEnrollment.count({
+        where: { event_id: eventId, status: "confirmed" },
+      });
       if (event.capacity && count >= event.capacity) {
         return { ok: false, reason: "EVENT_FULL" };
+      }
+
+      if (existing) {
+        await existing.update({ status: "confirmed", check_in_time: null });
+        return { ok: true, data: existing };
       }
 
       // 4. Create enrollment record
@@ -52,7 +61,7 @@ export class EnrollmentService {
       include: [{ 
         model: db.Event, 
         as: 'event',
-        include: ['eventVenue'] 
+        include: ['venue'] 
       }]
     });
   }

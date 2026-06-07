@@ -4,7 +4,6 @@ import cors from "cors";
 import helmet from "helmet";
 import compression from "compression";
 import cookieParser from "cookie-parser";
-import swaggerUi from "swagger-ui-express";
 
 // Local Modules
 import env from "./config/env.ts";
@@ -69,7 +68,42 @@ app.get("/health", (_req, res: Response) => {
   });
 });
 
-app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.get("/api-docs/openapi.json", (_req, res: Response) => {
+  res.status(200).json(swaggerSpec);
+});
+
+app.get("/api-docs", (_req, res: Response) => {
+  res.setHeader(
+    "Content-Security-Policy",
+    [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
+      "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
+      "font-src 'self' data: https://cdn.jsdelivr.net",
+      "img-src 'self' data: https://cdn.jsdelivr.net",
+      "connect-src 'self'",
+      "frame-ancestors 'none'",
+    ].join("; "),
+  );
+
+  res.status(200).type("html").send(`<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ADUN-EMS API Reference</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
+    <script>
+      Scalar.createApiReference('#app', {
+        url: '/api-docs/openapi.json'
+      });
+    </script>
+  </body>
+</html>`);
+});
 
 // Apply CSRF Protection (Only for API routes)
 app.use(csrfProtection);

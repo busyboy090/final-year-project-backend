@@ -9,7 +9,7 @@ const departmentBody = z.object({
 
   type: z.enum(["Academic","Administrative","Student Union","Support Unit","Research Unit"], {
     error: (issue) => ({
-      message: issue.input === undefined ? "Department type is required" : "Type must be: Academic, Adminstrative, Student Union, Support Unit, Research Unit"
+      message: issue.input === undefined ? "Department type is required" : "Type must be: Academic, Administrative, Student Union, Support Unit, Research Unit"
     })
   }),
 
@@ -20,7 +20,7 @@ const departmentBody = z.object({
   }).min(3, "Department code must be at least 3 characters long").trim()
   .toUpperCase(),
 
-  facultyId: z.string().optional() 
+  facultyId: z.coerce.number().int().positive().optional() 
 });
 
 export const createDepartmentSchema = z.object({ body: departmentBody });
