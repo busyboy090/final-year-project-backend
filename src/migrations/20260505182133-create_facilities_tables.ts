@@ -26,12 +26,6 @@ export default {
         allowNull: true,
       },
 
-      status: {
-        type: DataTypes.ENUM('active', 'inactive'),
-        allowNull: false,
-        defaultValue: 'active',
-      },
-
       created_at: {
         allowNull: false,
         type: DataTypes.DATE,

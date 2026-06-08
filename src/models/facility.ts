@@ -12,7 +12,6 @@ export class Facility extends Model<InferAttributes<Facility>, InferCreationAttr
   declare id: CreationOptional<number>;
   declare name: string;
   declare description: string | null;
-  declare status: string;
 
   // Timestamps
   declare created_at: CreationOptional<Date>;
@@ -47,11 +46,6 @@ export default (sequelize: Sequelize) => {
       description: {
         type: DataTypes.STRING,
         allowNull: false,
-      },
-      status: {
-        type: DataTypes.STRING,
-        allowNull: false,
-        defaultValue: 'active',
       },
       created_at: DataTypes.DATE,
       updated_at: DataTypes.DATE,

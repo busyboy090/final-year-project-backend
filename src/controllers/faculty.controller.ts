@@ -4,8 +4,6 @@ import { FacultyService } from "../services/faculty.service.ts";
 export class FacultyController {
   /**
    * GET /api/v1/faculties
-   * Fetches all university faculties with their departments for 
-   * student profile selection or event categorization.
    */
   static async getAllFaculties(_req: Request, res: Response) {
     try {
@@ -27,7 +25,6 @@ export class FacultyController {
 
   /**
    * GET /api/v1/faculties/:id
-   * Retrieves a single faculty and its nested department list.
    */
   static async getFacultyById(req: Request, res: Response) {
     try {
@@ -56,13 +53,11 @@ export class FacultyController {
 
   /**
    * POST /api/v1/faculties
-   * Administrative endpoint to create new academic faculties at ADUN.
    */
   static async createFaculty(req: Request, res: Response) {
     try {
       const { name, code } = req.body;
 
-      // Basic payload validation
       if (!name || !code) {
         return res.status(400).json({
           success: false,
@@ -80,12 +75,11 @@ export class FacultyController {
         });
       }
 
-      // Handle the existence check from the service
       if (result.reason === "FACULTY_ALREADY_EXISTS") {
         return res.status(409).json({
           success: false,
-          message: "A faculty with this name or code already exists in the system.",
-          reason: result.reason
+          message: "A faculty with this name or code already exists.",
+          reason: result.reason,
         });
       }
 
@@ -95,6 +89,106 @@ export class FacultyController {
       });
     } catch (error) {
       console.error("CREATE_FACULTY_CONTROLLER_CRASH:", error);
+      return res.status(500).json({
+        success: false,
+        message: "An internal server error occurred.",
+      });
+    }
+  }
+
+  /**
+   * PATCH /api/v1/faculties/:id
+   */
+  static async updateFaculty(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+      const { name, code } = req.body;
+
+      // At least one field must be present to constitute a valid update
+      if (!name && !code) {
+        return res.status(400).json({
+          success: false,
+          message: "Provide at least one field to update: name or code.",
+        });
+      }
+
+      const result = await FacultyService.updateFaculty(Number(id), { name, code });
+
+      if (result.ok) {
+        return res.status(200).json({
+          success: true,
+          message: "Faculty updated successfully.",
+          data: result.data,
+        });
+      }
+
+      if (result.reason === "FACULTY_NOT_FOUND") {
+        return res.status(404).json({
+          success: false,
+          message: "The faculty you are trying to update does not exist.",
+          reason: result.reason,
+        });
+      }
+
+      if (result.reason === "FACULTY_CODE_TAKEN") {
+        return res.status(409).json({
+          success: false,
+          message: "A faculty with this code already exists.",
+          reason: result.reason,
+        });
+      }
+
+      if (result.reason === "FACULTY_NAME_TAKEN") {
+        return res.status(409).json({
+          success: false,
+          message: "A faculty with this name already exists.",
+          reason: result.reason,
+        });
+      }
+
+      return res.status(400).json({
+        success: false,
+        message: "Failed to update faculty.",
+      });
+    } catch (error) {
+      console.error("UPDATE_FACULTY_CONTROLLER_CRASH:", error);
+      return res.status(500).json({
+        success: false,
+        message: "An internal server error occurred.",
+      });
+    }
+  }
+
+  /**
+   * DELETE /api/v1/faculties/:id
+   */
+  static async deleteFaculty(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+
+      const result = await FacultyService.deleteFaculty(Number(id));
+
+      if (result.ok) {
+        return res.status(200).json({
+          success: true,
+          message: "Faculty deleted successfully.",
+        });
+      }
+
+      if (result.reason === "FACULTY_NOT_FOUND") {
+        return res.status(404).json({
+          success: false,
+          message: "The faculty you are trying to delete does not exist.",
+          reason: result.reason,
+        });
+      }
+
+      return res.status(400).json({
+        success: false,
+        message: "Failed to delete faculty.",
+      });
+    } catch (error) {
+      console.error("DELETE_FACULTY_CONTROLLER_CRASH:", error);
       return res.status(500).json({
         success: false,
         message: "An internal server error occurred.",

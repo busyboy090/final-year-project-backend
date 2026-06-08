@@ -2,40 +2,70 @@ import { Router } from 'express';
 import { FacultyController } from '../controllers/faculty.controller.ts';
 import { authenticate } from '../middlewares/auth.ts';
 import { requireSuperAdmin } from '../middlewares/role.ts';
+import { validate } from '../middlewares/validate.ts';
+import {
+  createFacultySchema,
+  updateFacultySchema,
+  facultyParamsSchema
+} from '../validators/faculty.schema.ts';
 
-const router:Router = Router();
+const router: Router = Router();
 
 /**
  * GET /api/v1/faculties
- * Discovery: Allows students and staff to fetch faculties and their departments
- * for profile completion and event filtering.
+ * Discovery: Allows authenticated users to fetch all faculties with departments.
  */
 router.get(
-  '/', 
-  authenticate, 
+  '/',
+  authenticate,
   FacultyController.getAllFaculties
 );
 
 /**
  * GET /api/v1/faculties/:id
- * Details: Provides specific faculty details including nested departments.
+ * Details: Returns a single faculty with its nested departments.
  */
 router.get(
-  '/:id', 
-  authenticate, 
+  '/:id',
+  authenticate,
+  validate(facultyParamsSchema),
   FacultyController.getFacultyById
 );
 
 /**
  * POST /api/v1/faculties
- * Management: Restricted to Super Admins.
- * Permissions: Requires 'manage_structure' slug.
+ * Management: Super Admin only. Creates a new faculty.
  */
 router.post(
-  '/', 
+  '/',
   authenticate,
   requireSuperAdmin,
+  validate(createFacultySchema),
   FacultyController.createFaculty
+);
+
+/**
+ * PATCH /api/v1/faculties/:id
+ * Management: Super Admin only. Partially updates a faculty.
+ */
+router.patch(
+  '/:id',
+  authenticate,
+  requireSuperAdmin,
+  validate(updateFacultySchema),
+  FacultyController.updateFaculty
+);
+
+/**
+ * DELETE /api/v1/faculties/:id
+ * Management: Super Admin only. Removes a faculty from the system.
+ */
+router.delete(
+  '/:id',
+  authenticate,
+  requireSuperAdmin,
+  validate(facultyParamsSchema),
+  FacultyController.deleteFaculty
 );
 
 export default router;
