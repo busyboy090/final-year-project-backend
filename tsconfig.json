@@ -9,7 +9,7 @@
     /* File Layout */
     "rootDir": "./src",                // Source code location
     "outDir": "./dist",                // Compiled code location
-    "removeComments": true,            // Smaller output files
+    "removeComments": false,            // Smaller output files
     "noEmitOnError": true,             // Don't build if there are TS errors
     "noEmit": true,
     "allowImportingTsExtensions": true,
