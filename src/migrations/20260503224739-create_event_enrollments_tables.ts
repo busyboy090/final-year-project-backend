@@ -1,12 +1,12 @@
-'use strict';
+"use strict";
 
-import { DataTypes, Sequelize } from 'sequelize';
-import type { QueryInterface } from 'sequelize';
+import { DataTypes, Sequelize } from "sequelize";
+import type { QueryInterface } from "sequelize";
 
 /** @type {import('sequelize-cli').Migration} */
 export default {
   up: async (queryInterface: QueryInterface) => {
-    await queryInterface.createTable('event_enrollments', {
+    await queryInterface.createTable("event_enrollments", {
       id: {
         type: DataTypes.INTEGER,
         allowNull: false,
@@ -18,28 +18,28 @@ export default {
         type: DataTypes.INTEGER,
         allowNull: false,
         references: {
-          model: 'users',
-          key: 'id',
+          model: "users",
+          key: "id",
         },
-        onUpdate: 'CASCADE',
-        onDelete: 'CASCADE',
+        onUpdate: "CASCADE",
+        onDelete: "CASCADE",
       },
 
       event_id: {
         type: DataTypes.INTEGER,
         allowNull: false,
         references: {
-          model: 'events',
-          key: 'id',
+          model: "events",
+          key: "id",
         },
-        onUpdate: 'CASCADE',
-        onDelete: 'CASCADE',
+        onUpdate: "CASCADE",
+        onDelete: "CASCADE",
       },
 
       status: {
-        type: DataTypes.ENUM('confirmed', 'cancelled', 'attended'),
+        type: DataTypes.ENUM("confirmed", "cancelled", "attended"),
         allowNull: false,
-        defaultValue: 'confirmed',
+        defaultValue: "confirmed",
       },
 
       check_in_time: {
@@ -47,16 +47,28 @@ export default {
         allowNull: true,
       },
 
+      // Persisted QR token fields
+      qr_token: {
+        type: DataTypes.STRING(128),
+        allowNull: true,
+        unique: true,
+      },
+
+      qr_issued_at: {
+        type: DataTypes.DATE,
+        allowNull: true,
+      },
+
       created_at: {
         allowNull: false,
         type: DataTypes.DATE,
-        defaultValue: Sequelize.literal('CURRENT_TIMESTAMP'),
+        defaultValue: Sequelize.literal("CURRENT_TIMESTAMP"),
       },
 
       updated_at: {
         allowNull: false,
         type: DataTypes.DATE,
-        defaultValue: Sequelize.literal('CURRENT_TIMESTAMP'),
+        defaultValue: Sequelize.literal("CURRENT_TIMESTAMP"),
       },
     });
 
@@ -65,18 +77,22 @@ export default {
      * This prevents a student from enrolling in the same event twice.
      * Essential for maintaining clean data in the ADUN-EMS.
      */
-    await queryInterface.addConstraint('event_enrollments', {
-      fields: ['user_id', 'event_id'],
-      type: 'unique',
-      name: 'unique_user_event_enrollment'
+    await queryInterface.addConstraint("event_enrollments", {
+      fields: ["user_id", "event_id"],
+      type: "unique",
+      name: "unique_user_event_enrollment",
     });
 
     // Indexes for faster lookups when generating "My Events" or "Event Attendees" lists
-    await queryInterface.addIndex('event_enrollments', ['user_id']);
-    await queryInterface.addIndex('event_enrollments', ['event_id']);
+    await queryInterface.addIndex("event_enrollments", ["user_id"]);
+    await queryInterface.addIndex("event_enrollments", ["event_id"]);
+    // Index for quick token lookup
+    await queryInterface.addIndex("event_enrollments", ["qr_token"], {
+      name: "idx_event_enrollments_qr_token",
+    });
   },
 
   down: async (queryInterface: QueryInterface) => {
-    await queryInterface.dropTable('event_enrollments');
+    await queryInterface.dropTable("event_enrollments");
   },
 };
