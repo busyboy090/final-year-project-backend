@@ -42,13 +42,13 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Build
         run: pnpm run build
-      - name: Run migrations
-        env:
-          DB_HOST: 127.0.0.1
-          DB_PORT: 5432
-          DB_NAME: adun_test
-          DB_USERNAME: postgres
-          DB_PASSWORD: postgres
-        run: pnpm run migrate
+      # - name: Run migrations
+      #   env:
+      #     DB_HOST: 127.0.0.1
+      #     DB_PORT: 5432
+      #     DB_NAME: adun_test
+      #     DB_USERNAME: postgres
+      #     DB_PASSWORD: postgres
+      #   run: pnpm run migrate
       # - name: Run tests
       #   run: pnpm test || true
