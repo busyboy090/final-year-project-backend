@@ -7,7 +7,9 @@
   "scripts": {
     "test": "npm run build",
     "dev": "nodemon src/index.ts",
-    "build": "tsc"
+    "build": "tsc",
+    "worker": "node -r ts-node/register src/workers/qrWorker.ts",
+    "scheduler": "node -r ts-node/register -e \"(async()=>{const s=require('./src/services/schedulers/reminder.scheduler.ts');const fn=s.enqueueEventReminders;setInterval(()=>fn(24).catch(console.error),1000*60*60);console.log('Reminder scheduler started');})()\""
   },
   "keywords": [],
   "author": "",

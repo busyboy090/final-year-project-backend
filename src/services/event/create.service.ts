@@ -2,6 +2,8 @@ import db from "../../models/index.ts";
 import { VenueService } from "../venue.service.ts";
 import { CloudinaryHelper } from "../../helpers/cloudinary.helper.ts";
 import { Op, Sequelize } from "sequelize";
+import { sendEventCancellationEmail } from "../mail/cancellation.service.ts";
+import qrQueue from "../../queues/qrQueue.ts";
 
 // Extended EventResult type to safely handle statistical metrics payloads
 type EventResult = {
@@ -37,7 +39,7 @@ export class EventService {
       const organiserProfile = await db.EventOrganiserProfile.findOne({
         where: { user_id: userId },
       });
-      
+
       const organisation_id = organiserProfile?.organisation_id ?? null;
 
       // Ensure we are comparing real timestamp values safely
@@ -158,18 +160,31 @@ export class EventService {
 
       const where: any = {};
 
-      if (filters.status && ["pending", "approved", "rejected", "cancelled"].includes(filters.status)) {
+      if (
+        filters.status &&
+        ["pending", "approved", "rejected", "cancelled"].includes(
+          filters.status,
+        )
+      ) {
         where.status = filters.status;
       }
 
-      if (filters.category && [
-        "Academic Conference", "Workshop", "Cultural Event", 
-        "Sports Match", "Exhibition/Expo", "Social Gathering/Party"
-      ].includes(filters.category)) {
+      if (
+        filters.category &&
+        [
+          "Academic Conference",
+          "Workshop",
+          "Cultural Event",
+          "Sports Match",
+          "Exhibition/Expo",
+          "Social Gathering/Party",
+        ].includes(filters.category)
+      ) {
         where.category = filters.category;
       }
 
-      if (filters.organisation_id) where.organisation_id = filters.organisation_id;
+      if (filters.organisation_id)
+        where.organisation_id = filters.organisation_id;
       if (filters.venue_id) where.venue_id = filters.venue_id;
       if (filters.created_by || filters.creator_by) {
         where.created_by = Number(filters.created_by || filters.creator_by);
@@ -179,8 +194,10 @@ export class EventService {
         where.start_date = new Date(filters.date);
       } else if (filters.start_date_from || filters.start_date_to) {
         where.start_date = {};
-        if (filters.start_date_from) where.start_date[Op.gte] = new Date(filters.start_date_from);
-        if (filters.start_date_to) where.start_date[Op.lte] = new Date(filters.start_date_to);
+        if (filters.start_date_from)
+          where.start_date[Op.gte] = new Date(filters.start_date_from);
+        if (filters.start_date_to)
+          where.start_date[Op.lte] = new Date(filters.start_date_to);
       }
 
       if (filters.title) {
@@ -208,9 +225,9 @@ export class EventService {
                   ELSE 0 
                 END
               `),
-              "fillPercentage"
-            ]
-          ]
+              "fillPercentage",
+            ],
+          ],
         },
         include: [
           {
@@ -227,7 +244,7 @@ export class EventService {
             model: db.Organisation,
             as: "organisation",
             attributes: ["id", "name"],
-          }
+          },
         ],
         order: [["start_date", "ASC"]],
         limit,
@@ -274,9 +291,9 @@ export class EventService {
                   ELSE 0 
                 END
               `),
-              "fillPercentage"
-            ]
-          ]
+              "fillPercentage",
+            ],
+          ],
         },
         include: [
           {
@@ -292,8 +309,8 @@ export class EventService {
           {
             model: db.Organisation,
             as: "organisation",
-            attributes: ["id","name"]
-          }
+            attributes: ["id", "name"],
+          },
         ],
       });
       if (!event) return { ok: false, reason: "EVENT_NOT_FOUND" };
@@ -307,7 +324,10 @@ export class EventService {
   /**
    * Progresses state parameters for administrative oversight operations
    */
-  static async updateEventStatus(eventId: number, status: 'approved' | 'rejected'): Promise<EventResult> {
+  static async updateEventStatus(
+    eventId: number,
+    status: "approved" | "rejected",
+  ): Promise<EventResult> {
     try {
       const event = await db.Event.findByPk(eventId);
       if (!event) return { ok: false, reason: "EVENT_NOT_FOUND" };
@@ -323,23 +343,52 @@ export class EventService {
   /**
    * Cancels an event (soft delete)
    */
-  static async cancelEvent(eventId: number, userId: number): Promise<EventResult> {
+  static async cancelEvent(
+    eventId: number,
+    userId: number,
+  ): Promise<EventResult> {
     try {
       const event = await db.Event.findByPk(eventId);
       if (!event) return { ok: false, reason: "EVENT_NOT_FOUND" };
 
       // Only event creator or admin can cancel
-      if (event.created_by !== userId) return { ok: false, reason: "UNAUTHORIZED" };
+      if (event.created_by !== userId)
+        return { ok: false, reason: "UNAUTHORIZED" };
 
-      await event.update({ status: 'cancelled' });
+      await event.update({ status: "cancelled" });
 
-      // TODO: Send cancellation notifications to all enrolled users
-      // const enrollments = await db.EventEnrollment.findAll({ where: { event_id: eventId } });
-      // for (const enrollment of enrollments) {
-      //   await sendCancellationEmail(enrollment.user_id, event);
-      // }
+      // Notify enrolled users (enqueue cancellation emails)
+      try {
+        const enrollments = await db.EventEnrollment.findAll({
+          where: { event_id: eventId },
+        });
+        for (const enrollment of enrollments) {
+          const user = await db.User.findByPk(enrollment.user_id);
+          if (!user) continue;
 
-      return { ok: true, data: { message: "Event cancelled successfully", event } };
+          const payload = {
+            to: user.email ?? "no-reply",
+            firstName: user.first_name ?? "",
+            eventTitle: String(event.title),
+            eventDate: String(event.start_date),
+            venue: "",
+            reason: "Event cancelled by organiser",
+          };
+
+          if (qrQueue && typeof qrQueue.add === "function") {
+            await qrQueue.add(payload, { attempts: 3, backoff: 5000 });
+          } else {
+            void sendEventCancellationEmail(payload);
+          }
+        }
+      } catch (notifyErr) {
+        console.error("CANCEL_EVENT_NOTIFY_ERROR:", notifyErr);
+      }
+
+      return {
+        ok: true,
+        data: { message: "Event cancelled successfully", event },
+      };
     } catch (error) {
       console.error("CANCEL_EVENT_SERVICE_ERROR:", error);
       throw error;
@@ -350,20 +399,29 @@ export class EventService {
    * Deletes an event (soft delete by marking as rejected)
    * or hard delete if no enrollments
    */
-  static async deleteEvent(eventId: number, userId: number): Promise<EventResult> {
+  static async deleteEvent(
+    eventId: number,
+    userId: number,
+  ): Promise<EventResult> {
     try {
       const event = await db.Event.findByPk(eventId);
       if (!event) return { ok: false, reason: "EVENT_NOT_FOUND" };
 
       // Only event creator or admin can delete
-      if (event.created_by !== userId) return { ok: false, reason: "UNAUTHORIZED" };
+      if (event.created_by !== userId)
+        return { ok: false, reason: "UNAUTHORIZED" };
 
       // Check if event has enrollments
-      const enrollmentCount = await db.EventEnrollment.count({ where: { event_id: eventId } });
-      
+      const enrollmentCount = await db.EventEnrollment.count({
+        where: { event_id: eventId },
+      });
+
       if (enrollmentCount > 0) {
-        await event.update({ status: 'cancelled' });
-        return { ok: true, data: { message: "Event cancelled. Enrollments preserved.", event } };
+        await event.update({ status: "cancelled" });
+        return {
+          ok: true,
+          data: { message: "Event cancelled. Enrollments preserved.", event },
+        };
       } else {
         // Hard delete if no enrollments
         await event.destroy();
@@ -383,7 +441,7 @@ export class EventService {
       const baseWhere: any = userId ? { created_by: userId } : {};
       const now = new Date();
       const activeStatuses = ["pending", "approved"];
-      
+
       const [
         totalEvents,
         pendingApproval,

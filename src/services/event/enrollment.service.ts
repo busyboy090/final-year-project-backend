@@ -83,7 +83,10 @@ export class EnrollmentService {
           };
 
           if (qrQueue && typeof qrQueue.add === "function") {
-            await qrQueue.add(payload, { attempts: 3, backoff: 5000 });
+            await qrQueue.add(
+              { jobType: "registration", payload },
+              { attempts: 3, backoff: 5000 },
+            );
           } else {
             void sendEventRegistrationWithQR(payload);
           }
@@ -124,7 +127,10 @@ export class EnrollmentService {
         };
 
         if (qrQueue && typeof qrQueue.add === "function") {
-          await qrQueue.add(payload, { attempts: 3, backoff: 5000 });
+          await qrQueue.add(
+            { jobType: "registration", payload },
+            { attempts: 3, backoff: 5000 },
+          );
         } else {
           void sendEventRegistrationWithQR(payload);
         }
