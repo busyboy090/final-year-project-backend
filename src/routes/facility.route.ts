@@ -1,6 +1,9 @@
 import { Router } from "express";
 import { FacilityController } from "../controllers/facility.controller.ts";
-import { createFacilitySchema, updateFacilitySchema } from "../validators/facility.schema.ts";
+import {
+  createFacilitySchema,
+  updateFacilitySchema,
+} from "../validators/facility.schema.ts";
 import { validate } from "../middlewares/validate.ts";
 import { authenticate } from "../middlewares/auth.ts";
 import { hasRole } from "../middlewares/role.ts";
@@ -11,47 +14,105 @@ const router: Router = Router();
 router.use(authenticate);
 
 /**
- * @route   GET /api/v1/facilities
- * @desc    Retrieve all available facilities in the ADUN registry with pagination & search
+ * @swagger
+ * /api/v1/facilities:
+ *   get:
+ *     tags:
+ *       - Facilities
+ *     summary: Retrieve all facilities (requires auth)
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of facilities
  */
 router.get("/", FacilityController.getAllFacilities);
 
 /**
- * @route   GET /api/v1/facilities/:id
- * @desc    Fetch a specific facility asset by its ID
+ * @swagger
+ * /api/v1/facilities/{id}:
+ *   get:
+ *     tags:
+ *       - Facilities
+ *     summary: Get facility by ID
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Facility details
  */
 router.get("/:id", FacilityController.getFacilityById);
 
 /**
- * @route   POST /api/v1/facilities
- * @desc    Create a new university facility asset
+ * @swagger
+ * /api/v1/facilities:
+ *   post:
+ *     tags:
+ *       - Facilities
+ *     summary: Create a facility (admin only)
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
  */
 router.post(
-  "/", 
-  hasRole(["super-admin"]), 
-  validate(createFacilitySchema), 
-  FacilityController.createFacility
+  "/",
+  hasRole(["super-admin"]),
+  validate(createFacilitySchema),
+  FacilityController.createFacility,
 );
 
 /**
- * @route   PATCH /api/v1/facilities/:id
- * @desc    Update an existing facility's parameters
+ * @swagger
+ * /api/v1/facilities/{id}:
+ *   patch:
+ *     tags:
+ *       - Facilities
+ *     summary: Update a facility (admin)
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
  */
 router.patch(
-  "/:id", 
-  hasRole(["super-admin"]), 
-  validate(updateFacilitySchema), 
-  FacilityController.updateFacility
+  "/:id",
+  hasRole(["super-admin"]),
+  validate(updateFacilitySchema),
+  FacilityController.updateFacility,
 );
 
 /**
- * @route   DELETE /api/v1/facilities/:id
- * @desc    Delete a facility asset from the registry
+ * @swagger
+ * /api/v1/facilities/{id}:
+ *   delete:
+ *     tags:
+ *       - Facilities
+ *     summary: Delete a facility (admin)
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
+ *     security:
+ *       - bearerAuth: []
  */
 router.delete(
   "/:id",
   hasRole(["super-admin"]),
-  FacilityController.deleteFacility
+  FacilityController.deleteFacility,
 );
 
 export default router;

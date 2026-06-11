@@ -8,21 +8,32 @@ const options: swaggerJsdoc.Options = {
   definition: {
     openapi: "3.0.0",
     info: {
-      title: "Admiralty University of Nigeria — Event Management System API",
+      title: "Adun EMS API",
       version: "1.0.0",
       description:
-        "REST API for the **Admiralty University of Nigeria Event Management System** — campus events, bookings, and related operations.\n\n**CSRF:** `POST`, `PUT`, `PATCH`, and `DELETE` calls under `/api` require a CSRF cookie (set automatically) and the `x-csrf-token` header from `GET /api/csrf-token`. `GET /health` and `/api-docs` are outside CSRF protection.",
+        "REST API for the Admiralty University of Nigeria Event Management System — campus events, bookings, and related operations.\n\nCSRF: `POST`, `PUT`, `PATCH`, and `DELETE` calls under `/api` require the `x-csrf-token` header returned from `GET /api/csrf-token`. `GET /health` and `/api-docs` are outside CSRF protection.",
     },
     servers: [
       {
         url: "/",
-        description: "Same-origin server (paths include `/api` where applicable)",
+        description:
+          "Same-origin server (paths include `/api` where applicable)",
       },
     ],
     tags: [
       { name: "Health", description: "Liveness and uptime" },
-      { name: "Security", description: "CSRF token for mutating requests" },
-      { name: "Auth", description: "Registration and login" },
+      { name: "Security", description: "CSRF token and auth" },
+      { name: "Auth", description: "Registration, login, 2FA, password reset" },
+      { name: "Users", description: "User profile and admin user management" },
+      { name: "Events", description: "Create, update, list and manage events" },
+      { name: "Enrollments", description: "Event enrollment and check-ins" },
+      { name: "Venues", description: "Manage venues and capacity" },
+      {
+        name: "Organisations",
+        description: "Organisations, faculties and departments",
+      },
+      { name: "Admin", description: "Administrative reports and actions" },
+      { name: "Files", description: "File uploads (thumbnails, images)" },
     ],
     components: {
       parameters: {
@@ -33,62 +44,6 @@ const options: swaggerJsdoc.Options = {
           description:
             "CSRF token from GET /api/csrf-token. Send after cookies are stored for the session.",
           schema: { type: "string" },
-        },
-      },
-      schemas: {
-        PublicUser: {
-          type: "object",
-          properties: {
-            id: { type: "integer", example: 1 },
-            first_name: { type: "string" },
-            last_name: { type: "string" },
-            email: { type: "string", format: "email" },
-            role: {
-              type: "string",
-              enum: ["administrator", "organiser", "user"],
-            },
-            is_active: { type: "boolean" },
-            two_factor_enabled: {
-              type: "boolean",
-              description: "Present on register responses; login user object matches DB scope.",
-            },
-            created_at: { type: "string", format: "date-time" },
-            updated_at: { type: "string", format: "date-time" },
-          },
-        },
-        AuthTokens: {
-          type: "object",
-          properties: {
-            user: { $ref: "#/components/schemas/PublicUser" },
-            accessToken: {
-              type: "string",
-              description: "JWT access token (use as Bearer token for protected routes).",
-            },
-          },
-        },
-        ValidationErrorResponse: {
-          type: "object",
-          properties: {
-            success: { type: "boolean", example: false },
-            message: { type: "string", example: "Validation Error" },
-            errors: {
-              type: "array",
-              items: {
-                type: "object",
-                properties: {
-                  field: { type: "string" },
-                  message: { type: "string" },
-                },
-              },
-            },
-          },
-        },
-        ErrorMessage: {
-          type: "object",
-          properties: {
-            success: { type: "boolean", example: false },
-            message: { type: "string" },
-          },
         },
       },
       securitySchemes: {
@@ -103,9 +58,182 @@ const options: swaggerJsdoc.Options = {
           name: "x-api-key",
         },
       },
+      schemas: {
+        // Generic response wrappers
+        SuccessResponse: {
+          type: "object",
+          properties: {
+            success: { type: "boolean" },
+            message: { type: "string" },
+            data: { type: ["object", "array", "string", "number", "null"] },
+          },
+        },
+        ErrorMessage: {
+          type: "object",
+          properties: {
+            success: { type: "boolean", example: false },
+            message: { type: "string" },
+          },
+        },
+        ValidationErrorResponse: {
+          type: "object",
+          properties: {
+            success: { type: "boolean", example: false },
+            message: { type: "string", example: "Validation Error" },
+            errors: { type: "array", items: { type: "object" } },
+          },
+        },
+
+        // User related
+        PublicUser: {
+          type: "object",
+          properties: {
+            id: { type: "integer", example: 1 },
+            first_name: { type: "string" },
+            last_name: { type: "string" },
+            email: { type: "string", format: "email" },
+            role: {
+              type: "string",
+              enum: ["super-admin", "event-organiser", "staff", "student"],
+            },
+            email_verified: { type: "boolean" },
+            is_active: { type: "boolean" },
+            two_factor_enabled: { type: "boolean" },
+            profile_picture_url: { type: "string", format: "uri" },
+            created_at: { type: "string", format: "date-time" },
+            updated_at: { type: "string", format: "date-time" },
+          },
+        },
+
+        // Auth requests
+        RegisterRequest: {
+          type: "object",
+          required: [
+            "first_name",
+            "last_name",
+            "email",
+            "password",
+            "confirm_password",
+          ],
+          properties: {
+            first_name: { type: "string" },
+            last_name: { type: "string" },
+            email: { type: "string", format: "email" },
+            password: { type: "string" },
+            confirm_password: { type: "string" },
+          },
+        },
+        LoginRequest: {
+          type: "object",
+          required: ["email", "password"],
+          properties: {
+            email: { type: "string", format: "email" },
+            password: { type: "string" },
+            twoFactorToken: { type: "string" },
+          },
+        },
+        AuthTokens: {
+          type: "object",
+          properties: {
+            user: { $ref: "#/components/schemas/PublicUser" },
+            accessToken: { type: "string" },
+          },
+        },
+
+        // Event related
+        Venue: {
+          type: "object",
+          properties: {
+            id: { type: "integer" },
+            name: { type: "string" },
+            location: { type: "string" },
+            capacity: { type: "integer" },
+          },
+        },
+        Event: {
+          type: "object",
+          properties: {
+            id: { type: "integer" },
+            title: { type: "string" },
+            description: { type: "string" },
+            category: { type: "string" },
+            capacity: { type: "integer" },
+            thumbnail: { type: "string", format: "uri" },
+            duration: { type: "integer", description: "Minutes" },
+            start_date: { type: "string", format: "date-time" },
+            end_date: { type: "string", format: "date-time" },
+            status: {
+              type: "string",
+              enum: ["pending", "approved", "rejected", "cancelled"],
+            },
+            venue: { $ref: "#/components/schemas/Venue" },
+            organisation: { type: "object" },
+          },
+        },
+        EventCreateRequest: {
+          type: "object",
+          required: ["title", "category", "start_date", "end_date", "venue_id"],
+          properties: {
+            title: { type: "string" },
+            category: { type: "string" },
+            description: { type: "string" },
+            venue_id: { type: "integer" },
+            capacity: { type: "integer" },
+            start_date: { type: "string", format: "date-time" },
+            end_date: { type: "string", format: "date-time" },
+            duration: { type: "integer" },
+          },
+        },
+
+        // Enrollment
+        Enrollment: {
+          type: "object",
+          properties: {
+            id: { type: "integer" },
+            event_id: { type: "integer" },
+            user_id: { type: "integer" },
+            status: {
+              type: "string",
+              enum: ["confirmed", "cancelled", "attended"],
+            },
+            qr_token: { type: "string" },
+            qr_issued_at: { type: "string", format: "date-time" },
+            check_in_time: { type: "string", format: "date-time" },
+          },
+        },
+
+        // Organisation/faculty/department
+        Organisation: {
+          type: "object",
+          properties: {
+            id: { type: "integer" },
+            name: { type: "string" },
+            address: { type: "string" },
+          },
+        },
+        Faculty: {
+          type: "object",
+          properties: { id: { type: "integer" }, name: { type: "string" } },
+        },
+        Department: {
+          type: "object",
+          properties: { id: { type: "integer" }, name: { type: "string" } },
+        },
+
+        // Misc
+        Pagination: {
+          type: "object",
+          properties: {
+            page: { type: "integer" },
+            limit: { type: "integer" },
+            total: { type: "integer" },
+          },
+        },
+      },
     },
   },
-  apis: ["./src/index.ts", "./src/routes/*.ts"],
+  // Scan all source files — controllers and routes include JSDoc comments that will be parsed
+  apis: ["./src/**/*.ts"],
 };
 
 const swaggerSpec = swaggerJsdoc(options);

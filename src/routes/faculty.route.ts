@@ -1,71 +1,111 @@
-import { Router } from 'express';
-import { FacultyController } from '../controllers/faculty.controller.ts';
-import { authenticate } from '../middlewares/auth.ts';
-import { requireSuperAdmin } from '../middlewares/role.ts';
-import { validate } from '../middlewares/validate.ts';
+import { Router } from "express";
+import { FacultyController } from "../controllers/faculty.controller.ts";
+import { authenticate } from "../middlewares/auth.ts";
+import { requireSuperAdmin } from "../middlewares/role.ts";
+import { validate } from "../middlewares/validate.ts";
 import {
   createFacultySchema,
   updateFacultySchema,
-  facultyParamsSchema
-} from '../validators/faculty.schema.ts';
+  facultyParamsSchema,
+} from "../validators/faculty.schema.ts";
 
 const router: Router = Router();
 
 /**
- * GET /api/v1/faculties
- * Discovery: Allows authenticated users to fetch all faculties with departments.
+ * @swagger
+ * /api/v1/faculties:
+ *   get:
+ *     tags:
+ *       - Organisations
+ *     summary: Get all faculties
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of faculties
  */
-router.get(
-  '/',
-  authenticate,
-  FacultyController.getAllFaculties
-);
+router.get("/", authenticate, FacultyController.getAllFaculties);
 
 /**
- * GET /api/v1/faculties/:id
- * Details: Returns a single faculty with its nested departments.
+ * @swagger
+ * /api/v1/faculties/{id}:
+ *   get:
+ *     tags:
+ *       - Organisations
+ *     summary: Get faculty by id
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Faculty details
  */
 router.get(
-  '/:id',
+  "/:id",
   authenticate,
   validate(facultyParamsSchema),
-  FacultyController.getFacultyById
+  FacultyController.getFacultyById,
 );
 
 /**
- * POST /api/v1/faculties
- * Management: Super Admin only. Creates a new faculty.
+ * @swagger
+ * /api/v1/faculties:
+ *   post:
+ *     tags:
+ *       - Organisations
+ *     summary: Create faculty (admin)
+ *     security:
+ *       - bearerAuth: []
  */
 router.post(
-  '/',
+  "/",
   authenticate,
   requireSuperAdmin,
   validate(createFacultySchema),
-  FacultyController.createFaculty
+  FacultyController.createFaculty,
 );
 
 /**
- * PATCH /api/v1/faculties/:id
- * Management: Super Admin only. Partially updates a faculty.
+ * @swagger
+ * /api/v1/faculties/{id}:
+ *   patch:
+ *     tags:
+ *       - Organisations
+ *     summary: Update faculty (admin)
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
  */
 router.patch(
-  '/:id',
+  "/:id",
   authenticate,
   requireSuperAdmin,
   validate(updateFacultySchema),
-  FacultyController.updateFaculty
+  FacultyController.updateFaculty,
 );
 
 /**
- * DELETE /api/v1/faculties/:id
- * Management: Super Admin only. Removes a faculty from the system.
+ * @swagger
+ * /api/v1/faculties/{id}:
+ *   delete:
+ *     tags:
+ *       - Organisations
+ *     summary: Delete a faculty (admin)
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
  */
 router.delete(
-  '/:id',
+  "/:id",
   authenticate,
   requireSuperAdmin,
   validate(facultyParamsSchema),
-  FacultyController.deleteFaculty
+  FacultyController.deleteFaculty,
 );
 
 export default router;

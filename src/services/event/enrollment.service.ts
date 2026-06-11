@@ -1,4 +1,5 @@
 import db from "../../models/index.ts";
+import env from "../../config/env.ts";
 import {
   generateRandomToken,
   generateQrImageBase64,
@@ -66,7 +67,11 @@ export class EnrollmentService {
             qr_issued_at: new Date(),
           } as any);
 
-          const checkinUrl = `${process.env.FRONTEND_ORIGIN || process.env.API_ORIGIN || ""}/v1/events/enrollments/checkin-with-token?token=${encodeURIComponent(token)}`;
+          const origin =
+            env.FRONTEND_ORIGIN || env.FRONTEND_URL || env.API_ORIGIN || "";
+          const checkinUrl = `${origin}/v1/events/enrollments/checkin-with-token?token=${encodeURIComponent(
+            token,
+          )}`;
           const qrDataUrl = await generateQrImageBase64(checkinUrl);
 
           const user = existing.user ?? (await db.User.findByPk(userId));
@@ -109,7 +114,11 @@ export class EnrollmentService {
 
       // Generate QR image and send email to user
       try {
-        const checkinUrl = `${process.env.FRONTEND_ORIGIN || process.env.API_ORIGIN || ""}/v1/events/enrollments/checkin-with-token?token=${encodeURIComponent(token)}`;
+        const origin =
+          env.FRONTEND_ORIGIN || env.FRONTEND_URL || env.API_ORIGIN || "";
+        const checkinUrl = `${origin}/v1/events/enrollments/checkin-with-token?token=${encodeURIComponent(
+          token,
+        )}`;
         const qrDataUrl = await generateQrImageBase64(checkinUrl);
 
         // Fetch user email/name if available
@@ -258,3 +267,5 @@ export class EnrollmentService {
     }
   }
 }
+
+export default EnrollmentService;

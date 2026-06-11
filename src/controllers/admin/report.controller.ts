@@ -72,6 +72,71 @@ export class AdminReportController {
         .json({ success: false, message: "Internal server error" });
     }
   }
+
+  static async exportUsersCsv(_req: Request, res: Response) {
+    try {
+      const users = await db.User.findAll({
+        order: [["id", "ASC"]],
+      });
+
+      const headers = [
+        "User ID",
+        "First Name",
+        "Last Name",
+        "Email",
+        "Role",
+        "Email Verified",
+        "Is Active",
+        "Phone",
+        "Gender",
+        "Created At",
+      ];
+
+      const rows = users.map(
+        (u: any) =>
+          [
+            u.id,
+            (u.first_name ?? "").replace(/"/g, '""'),
+            (u.last_name ?? "").replace(/"/g, '""'),
+            (u.email ?? "").replace(/"/g, '""'),
+            u.role,
+            u.email_verified ? "true" : "false",
+            u.is_active ? "true" : "false",
+            (u.phone ?? "").replace(/"/g, '""'),
+            u.gender ?? "",
+            u.created_at ? new Date(u.created_at).toISOString() : "",
+          ] as Array<string | number>,
+      );
+
+      const csvLines: string[] = [];
+      csvLines.push(
+        headers
+          .map((h: string) => `"${String(h).replace(/"/g, '""')}"`)
+          .join(","),
+      );
+
+      for (const r of rows) {
+        const line = (r as Array<any>)
+          .map((cell: any) => `"${String(cell ?? "").replace(/"/g, '""')}"`)
+          .join(",");
+        csvLines.push(line);
+      }
+
+      const csv = csvLines.join("\r\n");
+
+      res.setHeader("Content-Type", "text/csv");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="users_full_export.csv"`,
+      );
+      res.status(200).send(csv);
+    } catch (error) {
+      console.error("EXPORT_USERS_ERROR:", error);
+      return res
+        .status(500)
+        .json({ success: false, message: "Internal server error" });
+    }
+  }
 }
 
 export default AdminReportController;

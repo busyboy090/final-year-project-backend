@@ -1,5 +1,5 @@
 // External Modules
-import express from 'express';
+import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import compression from "compression";
@@ -8,13 +8,13 @@ import cookieParser from "cookie-parser";
 // Local Modules
 import env from "./config/env.ts";
 import corsOptions from "./config/cors.ts";
-import helmetOptions from './config/helmet.ts';
-import csrfProtection from './config/csrf.ts';
+import helmetOptions from "./config/helmet.ts";
+import csrfProtection from "./config/csrf.ts";
 import swaggerSpec from "./config/swagger.ts";
-import { apiLimiter } from './middlewares/ratelimiter.ts';
+import { apiLimiter } from "./middlewares/ratelimiter.ts";
 
 // Types
-import type { Request, Response, Application } from 'express';
+import type { Request, Response, Application } from "express";
 
 // Routes
 import routes from "./routes/index.route.ts";
@@ -22,7 +22,7 @@ import routes from "./routes/index.route.ts";
 const app: Application = express();
 const PORT = env.PORT;
 
-app.set('trust proxy', 1);
+app.set("trust proxy", 1);
 // Global Security & Optimization
 app.use(helmet(helmetOptions));
 app.use(cors(corsOptions));
@@ -64,7 +64,7 @@ app.get("/health", (_req, res: Response) => {
   res.status(200).json({
     status: "ok",
     uptime: process.uptime(),
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
 });
 
@@ -114,51 +114,54 @@ app.use("/api/v1", apiLimiter, routes);
 // 404 Handler
 app.use((req: Request, res: Response) => {
   res.status(404).json({
-      status: "error",
-      message: `Route ${req.method} ${req.path} not found`
+    status: "error",
+    message: `Route ${req.method} ${req.path} not found`,
   });
 });
 
 // Error handler
 app.use(async (err: any, _req: any, res: Response, _next: any) => {
   try {
-      console.error(err);
+    console.error(err);
 
-      // Specific Handle for CSRF Errors
-      if (err.code === 'EBADCSRFTOKEN') {
-        return res.status(403).json({
-          status: "fail",
-          message: "Invalid or missing CSRF token. Please ensure your headers include 'x-csrf-token'."
-        });
-      }
+    // Specific Handle for CSRF Errors
+    if (err.code === "EBADCSRFTOKEN") {
+      return res.status(403).json({
+        status: "fail",
+        message:
+          "Invalid or missing CSRF token. Please ensure your headers include 'x-csrf-token'.",
+      });
+    }
 
-      // Handle Zod/Validation Errors if they bubble up
-      if (err.name === 'ZodError' || err.status === 400) {
-        return res.status(400).json({
-          status: "fail",
-          message: err.message,
-          errors: err.issues || err.errors
-        });
-      }
+    // Handle Zod/Validation Errors if they bubble up
+    if (err.name === "ZodError" || err.status === 400) {
+      return res.status(400).json({
+        status: "fail",
+        message: err.message,
+        errors: err.issues || err.errors,
+      });
+    }
 
-      const statusCode = err?.statusCode || err?.status || 500;
-      const message = statusCode === 500 ? "Internal server error" : err?.message;
-      const status = err?.status || "error";
+    const statusCode = err?.statusCode || err?.status || 500;
+    const message = statusCode === 500 ? "Internal server error" : err?.message;
+    const status = err?.status || "error";
 
-      if (!res.headersSent) {
-        res.status(statusCode).json({
-            status,
-            message,
-            ...(err?.reason && { reason: err.reason }),
-            // Only show stack trace in development mode for easier debugging
-            ...(env.NODE_ENV === 'development' && { stack: err.stack })
-        });
-      }
+    if (!res.headersSent) {
+      res.status(statusCode).json({
+        status,
+        message,
+        ...(err?.reason && { reason: err.reason }),
+        // Only show stack trace in development mode for easier debugging
+        ...(env.NODE_ENV === "development" && { stack: err.stack }),
+      });
+    }
   } catch (fatalErr) {
-      console.error("Fatal error in error middleware:", fatalErr);
-      if (!res.headersSent) {
-          res.status(500).json({ status: "error", message: "Internal server error" });
-      }
+    console.error("Fatal error in error middleware:", fatalErr);
+    if (!res.headersSent) {
+      res
+        .status(500)
+        .json({ status: "error", message: "Internal server error" });
+    }
   }
 });
 

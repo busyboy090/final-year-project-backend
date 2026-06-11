@@ -1,5 +1,4 @@
 import { Router } from "express";
-import type { Request, Response } from "express";
 import * as authControllers from "../controllers/auth/index.ts";
 import { authLimiter } from "../middlewares/ratelimiter.ts";
 import { validate } from "../middlewares/validate.ts";
@@ -10,39 +9,12 @@ const router: Router = Router();
 
 /**
  * @swagger
- * /api/auth/csrf-token:
- *   get:
- *     tags:
- *       - Security
- *     summary: Get CSRF token
- *     description: Returns a CSRF token that clients must send in the `x-csrf-token` header on POST/PUT/PATCH/DELETE under `/api`. Requires cookies (session + signed CSRF cookie).
- *     responses:
- *       200:
- *         description: CSRF token generated successfully.
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 csrfToken:
- *                   type: string
- *                   example: 7f4c0d0f-9ef7-4b5f-8f55-3fd9f5f5521a
- *       500:
- *         description: Failed to generate CSRF token.
- */
-
-router.get("/csrf-token", (req: Request, res: Response) => {
-  res.status(200).json({ csrfToken: req.csrfToken() });
-});
-
-/**
- * @swagger
- * /api/auth/register:
+ * /api/v1/auth/register:
  *   post:
  *     tags:
  *       - Auth
  *     summary: Register a new user
- *     description: Creates an account. Sets `refreshToken` as an HTTP-only cookie on success. Administrators may receive `twoFactorQRCode` and `twoFactorSecret` for initial 2FA setup.
+ *     description: Creates an account. Sets `refreshToken` as an HTTP-only cookie on success.
  *     parameters:
  *       - $ref: '#/components/parameters/CsrfHeader'
  *     requestBody:
@@ -50,83 +22,10 @@ router.get("/csrf-token", (req: Request, res: Response) => {
  *       content:
  *         application/json:
  *           schema:
- *             type: object
- *             required:
- *               - first_name
- *               - last_name
- *               - email
- *               - password
- *               - confirm_password
- *             properties:
- *               first_name:
- *                 type: string
- *                 minLength: 2
- *                 maxLength: 100
- *               last_name:
- *                 type: string
- *                 minLength: 2
- *                 maxLength: 100
- *               email:
- *                 type: string
- *                 format: email
- *               password:
- *                 type: string
- *                 minLength: 8
- *                 maxLength: 128
- *                 description: Must include uppercase, lowercase, and a digit.
- *               confirm_password:
- *                 type: string
- *                 description: Must match `password`.
+ *             $ref: '#/components/schemas/RegisterRequest'
  *     responses:
  *       201:
  *         description: User registered successfully.
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: User registered successfully
- *                 data:
- *                   type: object
- *                   properties:
- *                     user:
- *                       $ref: '#/components/schemas/PublicUser'
- *                     accessToken:
- *                       type: string
- *                     twoFactorQRCode:
- *                       type: string
- *                       description: Base64 QR image data URL (administrator flow).
- *                     twoFactorSecret:
- *                       type: string
- *                       description: Manual 2FA secret entry (administrator flow).
- *       400:
- *         description: Validation or registration error.
- *         content:
- *           application/json:
- *             schema:
- *               oneOf:
- *                 - $ref: '#/components/schemas/ValidationErrorResponse'
- *                 - $ref: '#/components/schemas/ErrorMessage'
- *       409:
- *         description: Email already registered.
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorMessage'
- *             example:
- *               success: false
- *               message: An account with this email already exists
- *       500:
- *         description: Internal server error.
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorMessage'
  */
 router.post(
   "/register",
@@ -137,12 +36,11 @@ router.post(
 
 /**
  * @swagger
- * /api/auth/login:
+ * /api/v1/auth/login:
  *   post:
  *     tags:
  *       - Auth
  *     summary: Log in
- *     description: Authenticates with email and password. When 2FA is enabled, repeat the request with `twoFactorToken` (TOTP) after `mfaRequired`. Sets `refreshToken` HTTP-only cookie on success.
  *     parameters:
  *       - $ref: '#/components/parameters/CsrfHeader'
  *     requestBody:
@@ -150,75 +48,10 @@ router.post(
  *       content:
  *         application/json:
  *           schema:
- *             type: object
- *             required:
- *               - email
- *               - password
- *             properties:
- *               email:
- *                 type: string
- *                 format: email
- *               password:
- *                 type: string
- *               twoFactorToken:
- *                 type: string
- *                 description: TOTP code when 2FA is enabled (second step).
+ *             $ref: '#/components/schemas/LoginRequest'
  *     responses:
  *       200:
- *         description: Login success, MFA challenge, or MFA step instructions.
- *         content:
- *           application/json:
- *             schema:
- *               oneOf:
- *                 - type: object
- *                   description: Login successful
- *                   properties:
- *                     success:
- *                       type: boolean
- *                       example: true
- *                     message:
- *                       type: string
- *                       example: Login successful
- *                     data:
- *                       $ref: '#/components/schemas/AuthTokens'
- *                 - type: object
- *                   description: 2FA required (submit TOTP in twoFactorToken)
- *                   properties:
- *                     success:
- *                       type: boolean
- *                       example: true
- *                     mfaRequired:
- *                       type: boolean
- *                       example: true
- *                     message:
- *                       type: string
- *                       example: Please enter your 2FA token
- *       400:
- *         description: Validation error or generic login failure.
- *         content:
- *           application/json:
- *             schema:
- *               oneOf:
- *                 - $ref: '#/components/schemas/ValidationErrorResponse'
- *                 - $ref: '#/components/schemas/ErrorMessage'
- *       401:
- *         description: Invalid credentials or invalid 2FA code.
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorMessage'
- *       403:
- *         description: Account inactive.
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorMessage'
- *       500:
- *         description: Internal server error.
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorMessage'
+ *         description: Login success or MFA challenge.
  */
 router.post(
   "/login",
@@ -227,6 +60,25 @@ router.post(
   authControllers.loginController,
 );
 
+/**
+ * @swagger
+ * /api/v1/auth/verify-email:
+ *   patch:
+ *     tags:
+ *       - Auth
+ *     summary: Verify email using OTP
+ *     parameters:
+ *       - $ref: '#/components/parameters/CsrfHeader'
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/OtpRequest'
+ *     responses:
+ *       200:
+ *         description: Email verified
+ */
 router.patch(
   "/verify-email",
   validate(authSchema.otpSchema),
@@ -235,15 +87,59 @@ router.patch(
   authControllers.emailVerificationController,
 );
 
+/**
+ * @swagger
+ * /api/v1/auth/refresh-token:
+ *   post:
+ *     tags:
+ *       - Auth
+ *     summary: Exchange refresh token for a new access token
+ *     responses:
+ *       200:
+ *         description: New access token returned
+ */
 router.post("/refresh-token", authControllers.generateNewAccessToken);
 
+/**
+ * @swagger
+ * /api/v1/auth/logout:
+ *   post:
+ *     tags:
+ *       - Auth
+ *     summary: Logout and clear refresh token cookie
+ *     responses:
+ *       200:
+ *         description: Logged out successfully
+ */
 router.post("/logout", authControllers.logoutController);
 
+/**
+ * @swagger
+ * /api/v1/auth/verify-email/session:
+ *   get:
+ *     tags:
+ *       - Auth
+ *     summary: Check email verification temp-token session
+ *     responses:
+ *       200:
+ *         description: Temp token session valid
+ */
 router.get(
   "/verify-email/session",
   authControllers.verifyTempTokenController("email_verification"),
 );
 
+/**
+ * @swagger
+ * /api/v1/auth/verify-email/resend-otp:
+ *   post:
+ *     tags:
+ *       - Auth
+ *     summary: Resend email verification OTP
+ *     responses:
+ *       200:
+ *         description: OTP resent
+ */
 router.post(
   "/verify-email/resend-otp",
   authLimiter("/verify-email/resend-otp"),
@@ -251,12 +147,51 @@ router.post(
   authControllers.resendOtpController("email_verification"),
 );
 
+/**
+ * @swagger
+ * /api/v1/auth/session:
+ *   get:
+ *     tags:
+ *       - Auth
+ *     summary: Check if the current request is authenticated (access token)
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Authenticated session info
+ */
 router.get("/session", authControllers.isAuthenticatedController);
 
-// Multi-Factor Authentication route
-
+/**
+ * @swagger
+ * /api/v1/auth/mfa/session:
+ *   get:
+ *     tags:
+ *       - Auth
+ *     summary: Check MFA temp-token session
+ *     responses:
+ *       200:
+ *         description: MFA temp token session valid
+ */
 router.get("/mfa/session", authControllers.verifyTempTokenController("mfa"));
 
+/**
+ * @swagger
+ * /api/v1/auth/verify-mfa:
+ *   post:
+ *     tags:
+ *       - Auth
+ *     summary: Verify Multi-Factor Authentication OTP
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/OtpRequest'
+ *     responses:
+ *       200:
+ *         description: MFA verified
+ */
 router.post(
   "/verify-mfa",
   validate(authSchema.otpSchema),
@@ -265,6 +200,17 @@ router.post(
   authControllers.verifyMfaController,
 );
 
+/**
+ * @swagger
+ * /api/v1/auth/mfa/resend-otp:
+ *   post:
+ *     tags:
+ *       - Auth
+ *     summary: Resend MFA OTP
+ *     responses:
+ *       200:
+ *         description: MFA OTP resent
+ */
 router.post(
   "/mfa/resend-otp",
   authLimiter("/mfa/resend-otp"),
@@ -272,9 +218,36 @@ router.post(
   authControllers.resendOtpController("mfa"),
 );
 
+/**
+ * @swagger
+ * /api/v1/auth/clear-temp-token:
+ *   post:
+ *     tags:
+ *       - Auth
+ *     summary: Clear any temporary token stored in session/cookie
+ *     responses:
+ *       200:
+ *         description: Temp token cleared
+ */
 router.post("/clear-temp-token", authControllers.clearTempTokenController);
 
-// Reset password routes
+/**
+ * @swagger
+ * /api/v1/auth/reset-password/request:
+ *   post:
+ *     tags:
+ *       - Auth
+ *     summary: Request a password reset OTP
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/EmailRequest'
+ *     responses:
+ *       200:
+ *         description: OTP sent if email exists
+ */
 router.post(
   "/reset-password/request",
   validate(authSchema.emailSchema),
@@ -282,6 +255,23 @@ router.post(
   authControllers.requestResetPasswordController,
 );
 
+/**
+ * @swagger
+ * /api/v1/auth/reset-password/verify:
+ *   post:
+ *     tags:
+ *       - Auth
+ *     summary: Verify reset password OTP
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/VerifyResetPasswordRequest'
+ *     responses:
+ *       200:
+ *         description: OTP verified, temp token issued
+ */
 router.post(
   "/reset-password/verify",
   validate(authSchema.verifyResetPasswordOTPSchema),
@@ -289,6 +279,23 @@ router.post(
   authControllers.verifyResetPasswordOTPController,
 );
 
+/**
+ * @swagger
+ * /api/v1/auth/reset-password:
+ *   patch:
+ *     tags:
+ *       - Auth
+ *     summary: Set a new password using reset password temp token
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/ResetPasswordRequest'
+ *     responses:
+ *       200:
+ *         description: Password reset successfully
+ */
 router.patch(
   "/reset-password",
   authMiddleware.verifyTempToken("password_reset"),
@@ -297,23 +304,73 @@ router.patch(
   authControllers.resetPasswordController,
 );
 
+/**
+ * @swagger
+ * /api/v1/auth/reset-password/resend-otp:
+ *   patch:
+ *     tags:
+ *       - Auth
+ *     summary: Resend reset-password OTP
+ *     responses:
+ *       200:
+ *         description: OTP resent
+ */
 router.patch(
   "/reset-password/resend-otp",
   authLimiter("/reset-password/resend-otp"),
   authControllers.resendOtpController("password_reset"),
 );
 
+/**
+ * @swagger
+ * /api/v1/auth/reset-password/session:
+ *   get:
+ *     tags:
+ *       - Auth
+ *     summary: Check reset-password temp-token session
+ *     responses:
+ *       200:
+ *         description: Temp token session valid
+ */
 router.get(
   "/reset-password/session",
   authControllers.verifyTempTokenController("password_reset"),
 );
 
+/**
+ * @swagger
+ * /api/v1/auth/set-password/session:
+ *   get:
+ *     tags:
+ *       - Auth
+ *     summary: Check set-password temp-token session
+ *     responses:
+ *       200:
+ *         description: Temp token session valid
+ */
 router.get(
   "/set-password/session",
   authControllers.verifyTempTokenController("set_password"),
 );
 
-// update 2fa
+/**
+ * @swagger
+ * /api/v1/auth/2fa-toggle:
+ *   patch:
+ *     tags:
+ *       - Auth
+ *     summary: Toggle Two Factor Authentication for the authenticated user
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *     responses:
+ *       200:
+ *         description: 2FA updated
+ */
 router.patch(
   "/2fa-toggle",
   authMiddleware.authenticate,

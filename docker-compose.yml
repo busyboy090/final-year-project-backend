@@ -1,0 +1,76 @@
+version: "3.8"
+services:
+  db:
+    image: postgres:15
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: adun_dev
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:7
+    restart: always
+    ports:
+      - "6379:6379"
+
+  app:
+    build: .
+    command: pnpm run dev
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: adun_dev
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      UPSTASH_REDIS_URL: redis://redis:6379
+      ACCESS_TOKEN_SECRET: changeme
+      REFRESH_TOKEN_SECRET: changeme2
+      TEMP_TOKEN_SECRET: changeme3
+      COOKIE_SECRET: changeme4
+      EVENT_TOKEN_SECRET: changeme5
+      EMAIL_TOKEN_SECRET: changeme6
+      RESEND_API_KEY: changeme
+      DOMAIN: localhost
+      FRONTEND_URL: http://localhost:5173
+    depends_on:
+      - db
+      - redis
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./:/app
+
+  worker:
+    build: .
+    command: pnpm run worker
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: adun_dev
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      UPSTASH_REDIS_URL: redis://redis:6379
+      ACCESS_TOKEN_SECRET: changeme
+      REFRESH_TOKEN_SECRET: changeme2
+      TEMP_TOKEN_SECRET: changeme3
+      COOKIE_SECRET: changeme4
+      EVENT_TOKEN_SECRET: changeme5
+      EMAIL_TOKEN_SECRET: changeme6
+      RESEND_API_KEY: changeme
+      DOMAIN: localhost
+      FRONTEND_URL: http://localhost:5173
+    depends_on:
+      - db
+      - redis
+
+volumes:
+  db-data:

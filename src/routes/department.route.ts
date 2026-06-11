@@ -1,77 +1,117 @@
 // routes/department.routes.ts
-import { Router } from 'express';
-import { DepartmentController } from '../controllers/department.controller.ts';
-import { authenticate } from '../middlewares/auth.ts';
-import { requireSuperAdmin } from '../middlewares/role.ts';
-import { validate } from '../middlewares/validate.ts';
+import { Router } from "express";
+import { DepartmentController } from "../controllers/department.controller.ts";
+import { authenticate } from "../middlewares/auth.ts";
+import { requireSuperAdmin } from "../middlewares/role.ts";
+import { validate } from "../middlewares/validate.ts";
 import {
   createDepartmentSchema,
   updateDepartmentSchema,
   getDepartmentByIdSchema,
   deleteDepartmentSchema,
   getAllDepartmentsSchema,
-} from '../validators/department.schema.ts';
+} from "../validators/department.schema.ts";
 
 const router: Router = Router();
 
 /**
- * GET /api/v1/departments
- * Discovery: Returns a paginated, filterable list of departments.
- * Supports query params: page, limit, facultyId, type, search.
+ * @swagger
+ * /api/v1/departments:
+ *   get:
+ *     tags:
+ *       - Organisations
+ *     summary: List departments
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of departments
  */
 router.get(
-  '/',
+  "/",
   authenticate,
   validate(getAllDepartmentsSchema),
-  DepartmentController.getAllDepartments
+  DepartmentController.getAllDepartments,
 );
 
 /**
- * GET /api/v1/departments/:id
- * Details: Returns a single department with its parent faculty.
+ * @swagger
+ * /api/v1/departments/{id}:
+ *   get:
+ *     tags:
+ *       - Organisations
+ *     summary: Get department by id
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
+ *     responses:
+ *       200:
+ *         description: Department details
  */
 router.get(
-  '/:id',
+  "/:id",
   authenticate,
   validate(getDepartmentByIdSchema),
-  DepartmentController.getDepartmentById
+  DepartmentController.getDepartmentById,
 );
 
 /**
- * POST /api/v1/departments
- * Management: Super Admin only. Creates a new department.
+ * @swagger
+ * /api/v1/departments:
+ *   post:
+ *     tags:
+ *       - Organisations
+ *     summary: Create department (admin)
+ *     security:
+ *       - bearerAuth: []
  */
 router.post(
-  '/',
+  "/",
   authenticate,
   requireSuperAdmin,
   validate(createDepartmentSchema),
-  DepartmentController.createDepartment
+  DepartmentController.createDepartment,
 );
 
 /**
- * PATCH /api/v1/departments/:id
- * Management: Super Admin only. Partially updates a department.
+ * @swagger
+ * /api/v1/departments/{id}:
+ *   patch:
+ *     tags:
+ *       - Organisations
+ *     summary: Update department (admin)
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
  */
 router.patch(
-  '/:id',
+  "/:id",
   authenticate,
   requireSuperAdmin,
   validate(updateDepartmentSchema),
-  DepartmentController.updateDepartment
+  DepartmentController.updateDepartment,
 );
 
 /**
- * DELETE /api/v1/departments/:id
- * Management: Super Admin only. Removes a department.
- * Note: faculty_id on affected users/events is SET NULL per FK constraint.
+ * @swagger
+ * /api/v1/departments/{id}:
+ *   delete:
+ *     tags:
+ *       - Organisations
+ *     summary: Delete department (admin)
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
  */
 router.delete(
-  '/:id',
+  "/:id",
   authenticate,
   requireSuperAdmin,
   validate(deleteDepartmentSchema),
-  DepartmentController.deleteDepartment
+  DepartmentController.deleteDepartment,
 );
 
 export default router;

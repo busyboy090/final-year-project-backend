@@ -1,73 +1,152 @@
-import { Router } from 'express';
-import { OrganisationController } from '../controllers/organisation.controller.ts';
+import { Router } from "express";
+import { OrganisationController } from "../controllers/organisation.controller.ts";
 import {
   createOrganisationSchema,
   updateOrganisationSchema,
   organisationIdParamSchema,
   organisationQuerySchema,
-} from '../validators/organisation.schema.ts';
-import { validate } from '../middlewares/validate.ts';
-import { requireSuperAdmin } from '../middlewares/role.ts';
-import { authenticate } from '../middlewares/auth.ts';
+} from "../validators/organisation.schema.ts";
+import { validate } from "../middlewares/validate.ts";
+import { requireSuperAdmin } from "../middlewares/role.ts";
+import { authenticate } from "../middlewares/auth.ts";
 
 const router: Router = Router();
 
 /**
- * @route   GET /api/organisations
- * @desc    List all organisations (paginated, filterable)
- * @access  Private
+ * @swagger
+ * /api/v1/organisations:
+ *   get:
+ *     tags:
+ *       - Organisations
+ *     summary: List all organisations (paginated/filterable)
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - name: page
+ *         in: query
+ *         schema:
+ *           type: integer
+ *       - name: limit
+ *         in: query
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: A list of organisations
  */
 router.get(
-  '/',
+  "/",
   validate(organisationQuerySchema),
-  OrganisationController.getAll
+  OrganisationController.getAll,
 );
 
 /**
- * @route   GET /api/organisations/:id
- * @desc    Get a single organisation by ID
- * @access  Private
+ * @swagger
+ * /api/v1/organisations/{id}:
+ *   get:
+ *     tags:
+ *       - Organisations
+ *     summary: Get a single organisation by ID
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Organisation details
+ *       404:
+ *         $ref: '#/components/schemas/ErrorMessage'
  */
 router.get(
-  '/:id',
+  "/:id",
   validate(organisationIdParamSchema),
-  OrganisationController.getById
+  OrganisationController.getById,
 );
 
-
+// Administrative routes require authentication and super-admin
 router.use(authenticate, requireSuperAdmin);
 
 /**
- * @route   POST /api/organisations
- * @desc    Create a new organisation
- * @access  Private
+ * @swagger
+ * /api/v1/organisations:
+ *   post:
+ *     tags:
+ *       - Organisations
+ *     summary: Create a new organisation (admin)
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - $ref: '#/components/parameters/CsrfHeader'
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *     responses:
+ *       201:
+ *         description: Organisation created
  */
 router.post(
-  '/',
+  "/",
   validate(createOrganisationSchema),
-  OrganisationController.create
+  OrganisationController.create,
 );
 
 /**
- * @route   PATCH /api/organisations/:id
- * @desc    Update an existing organisation
- * @access  Private
+ * @swagger
+ * /api/v1/organisations/{id}:
+ *   patch:
+ *     tags:
+ *       - Organisations
+ *     summary: Update an existing organisation (admin)
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *     responses:
+ *       200:
+ *         description: Organisation updated
  */
 router.patch(
-  '/:id',
+  "/:id",
   validate(updateOrganisationSchema),
-  OrganisationController.update
+  OrganisationController.update,
 );
 
 /**
- * @route   DELETE /api/organisations/:id
- * @desc    Delete an organisation
- * @access  Private
+ * @swagger
+ * /api/v1/organisations/{id}:
+ *   delete:
+ *     tags:
+ *       - Organisations
+ *     summary: Delete an organisation (admin)
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Organisation deleted
  */
 router.delete(
-  '/:id',
+  "/:id",
   validate(organisationIdParamSchema),
-  OrganisationController.delete
+  OrganisationController.delete,
 );
 
 export default router;

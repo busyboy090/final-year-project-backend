@@ -20,6 +20,7 @@ export class EventEnrollment extends Model<
   declare check_in_time: Date | null;
   declare qr_token: string | null;
   declare qr_issued_at: Date | null;
+  declare reminder_sent_at: Date | null;
 
   // Timestamps
   declare created_at: CreationOptional<Date>;
@@ -83,6 +84,10 @@ export default (sequelize: Sequelize) => {
         unique: true,
       },
       qr_issued_at: {
+        type: DataTypes.DATE,
+        allowNull: true,
+      },
+      reminder_sent_at: {
         type: DataTypes.DATE,
         allowNull: true,
       },

@@ -19,7 +19,7 @@ const router: Router = Router();
 // Routes
 /**
  * @swagger
- * /api/csrf-token:
+ * /api/v1/csrf-token:
  *   get:
  *     tags:
  *       - Security
@@ -71,6 +71,6 @@ router.use("/faculties", FacultyRoutes);
 router.use("/facilities", FacilityRoutes);
 
 // Organisation Routes
-router.use("/organisations", OrganisationRoutes)
+router.use("/organisations", OrganisationRoutes);
 
 export default router;

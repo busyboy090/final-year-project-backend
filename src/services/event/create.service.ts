@@ -376,7 +376,10 @@ export class EventService {
           };
 
           if (qrQueue && typeof qrQueue.add === "function") {
-            await qrQueue.add(payload, { attempts: 3, backoff: 5000 });
+            await qrQueue.add(
+              { jobType: "cancellation", payload },
+              { attempts: 3, backoff: 5000 },
+            );
           } else {
             void sendEventCancellationEmail(payload);
           }

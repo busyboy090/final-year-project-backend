@@ -6,6 +6,7 @@ import {
 } from "../../services/qr.service.ts";
 import qrQueue from "../../queues/qrQueue.ts";
 import { sendEventRegistrationWithQR } from "../../services/mail/qrMail.service.ts";
+import env from "../../config/env.ts";
 
 export class AdminEnrollmentController {
   static async regenerateQr(req: Request, res: Response) {
@@ -30,7 +31,9 @@ export class AdminEnrollmentController {
       } as any);
 
       // Build QR and email payload
-      const checkinUrl = `${process.env.FRONTEND_ORIGIN || process.env.API_ORIGIN || ""}/v1/events/enrollments/checkin-with-token?token=${encodeURIComponent(token)}`;
+      const origin =
+        env.FRONTEND_ORIGIN || env.FRONTEND_URL || env.API_ORIGIN || "";
+      const checkinUrl = `${origin}/v1/events/enrollments/checkin-with-token?token=${encodeURIComponent(token)}`;
       const qrDataUrl = await generateQrImageBase64(checkinUrl);
 
       const user =
@@ -50,7 +53,10 @@ export class AdminEnrollmentController {
       // Enqueue or send directly
       try {
         if (qrQueue && typeof qrQueue.add === "function") {
-          await qrQueue.add(payload, { attempts: 3, backoff: 5000 });
+          await qrQueue.add(
+            { jobType: "regeneration", payload },
+            { attempts: 3, backoff: 5000 },
+          );
         } else {
           await sendEventRegistrationWithQR(payload);
         }
@@ -58,13 +64,11 @@ export class AdminEnrollmentController {
         console.error("QR_EMAIL_REGEN_ERROR:", err);
       }
 
-      return res
-        .status(200)
-        .json({
-          success: true,
-          message: "QR regenerated and emailed",
-          data: { enrollment },
-        });
+      return res.status(200).json({
+        success: true,
+        message: "QR regenerated and emailed",
+        data: { enrollment },
+      });
     } catch (error) {
       console.error("ADMIN_REGEN_QR_ERROR:", error);
       return res

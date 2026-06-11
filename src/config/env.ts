@@ -27,7 +27,9 @@ interface EnvConfig {
   CLOUDINARY_API_KEY: string;
   CLOUDINARY_API_SECRET: string;
   FRONTEND_URL?: string;
-  EVENT_TOKEN_SCERET?: string;
+  FRONTEND_ORIGIN?: string;
+  API_ORIGIN?: string;
+  EVENT_TOKEN_SECRET?: string;
 }
 
 const env: EnvConfig = {
@@ -55,12 +57,21 @@ const env: EnvConfig = {
   CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY || "",
   CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET || "",
   FRONTEND_URL: process.env.FRONTEND_URL || "",
-  EVENT_TOKEN_SCERET: process.env.EVENT_TOKEN_SCERET || "",
+  FRONTEND_ORIGIN:
+    process.env.FRONTEND_ORIGIN || process.env.FRONTEND_URL || "",
+  API_ORIGIN: process.env.API_ORIGIN || "",
+  EVENT_TOKEN_SECRET:
+    process.env.EVENT_TOKEN_SECRET || process.env.EVENT_TOKEN_SCERET || "",
 };
 
 // Logic check: Ensure critical DB and Secret variables exist in production
 if (env.NODE_ENV === "production") {
-  const required = ["DB_NAME", "DB_PASSWORD", "ACCESS_TOKEN_SECRET", "COOKIE_SECRET"];
+  const required = [
+    "DB_NAME",
+    "DB_PASSWORD",
+    "ACCESS_TOKEN_SECRET",
+    "COOKIE_SECRET",
+  ];
   required.forEach((key) => {
     if (!env[key as keyof EnvConfig]) {
       throw new Error(`❌ Missing required environment variable: ${key}`);
