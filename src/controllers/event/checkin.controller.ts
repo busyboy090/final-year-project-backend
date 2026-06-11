@@ -1,5 +1,4 @@
 import type { Request, Response } from "express";
-import { verifySignedToken } from "../../services/qr.service.ts";
 import db from "../../models/index.ts";
 
 export const checkinWithToken = async (req: Request, res: Response) => {
@@ -10,24 +9,37 @@ export const checkinWithToken = async (req: Request, res: Response) => {
         .status(400)
         .json({ success: false, message: "Token is required" });
 
-    const verification = verifySignedToken(token);
-    if (!verification.ok)
-      return res
-        .status(400)
-        .json({ success: false, message: "Invalid or expired token" });
+    // Find enrollment by persistent token
+    const enrollment = await db.EventEnrollment.findOne({
+      where: { qr_token: token },
+      include: [{ model: db.Event, as: "event" }],
+    });
 
-    const { enrollmentId, userId, eventId } = verification.data as any;
-
-    const enrollment = await db.EventEnrollment.findByPk(enrollmentId);
     if (!enrollment)
       return res
         .status(404)
-        .json({ success: false, message: "Enrollment not found" });
+        .json({
+          success: false,
+          message: "Invalid token or enrollment not found",
+        });
 
-    if (enrollment.event_id !== eventId || enrollment.user_id !== userId) {
+    // Ensure event is currently active/approved
+    const event = enrollment.event;
+    if (!event || event.status !== "approved") {
       return res
-        .status(400)
-        .json({ success: false, message: "Token does not match enrollment" });
+        .status(403)
+        .json({ success: false, message: "Event is not active" });
+    }
+
+    const now = new Date();
+    const start = new Date(event.start_date);
+    const end = new Date(event.end_date);
+
+    // Ensure within allowed check-in window
+    if (now < start || now > end) {
+      return res
+        .status(403)
+        .json({ success: false, message: "Event not in check-in window" });
     }
 
     if (enrollment.status === "cancelled") {
@@ -42,6 +54,7 @@ export const checkinWithToken = async (req: Request, res: Response) => {
         .json({ success: false, message: "Already checked in" });
     }
 
+    // Mark as checked in
     await enrollment.update({ check_in_time: new Date(), status: "attended" });
 
     return res
