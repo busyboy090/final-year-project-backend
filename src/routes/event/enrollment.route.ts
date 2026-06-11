@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { EnrollmentController } from '../../controllers/event/enrollment.controller.ts';
 import { authenticate } from '../../middlewares/auth.ts';
+import CheckinRoute from './checkin.route.ts';
 
 const router:Router = Router();
 
@@ -33,5 +34,7 @@ router.patch('/:enrollmentId/cancel', authenticate, EnrollmentController.cancelE
  * Get attendance statistics for an event (admin/organizer only)
  */
 router.get('/:eventId/stats', authenticate, EnrollmentController.getAttendanceStats);
+
+router.use("/enrollments/checkin-with-token", authenticate, CheckinRoute);
 
 export default router;

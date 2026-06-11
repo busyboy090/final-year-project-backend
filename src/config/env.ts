@@ -27,6 +27,7 @@ interface EnvConfig {
   CLOUDINARY_API_KEY: string;
   CLOUDINARY_API_SECRET: string;
   FRONTEND_URL?: string;
+  EVENT_TOKEN_SCERET?: string;
 }
 
 const env: EnvConfig = {
@@ -54,6 +55,7 @@ const env: EnvConfig = {
   CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY || "",
   CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET || "",
   FRONTEND_URL: process.env.FRONTEND_URL || "",
+  EVENT_TOKEN_SCERET: process.env.EVENT_TOKEN_SCERET || "",
 };
 
 // Logic check: Ensure critical DB and Secret variables exist in production

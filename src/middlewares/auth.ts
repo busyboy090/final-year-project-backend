@@ -1,6 +1,8 @@
 import * as jwt from './../utils/jwt.ts';
 import type { Request, Response, NextFunction } from "express";
 import db from "../models/index.ts";
+import { ProfileService } from '../services/user/profile.service.ts';
+import type { UserRole } from '../types/user';
 
 export const authenticate = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -121,3 +123,37 @@ export const verifyTempToken = (type: string) => {
         }
     };
 };
+
+export const checkUserProfile = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = Number(req.user?.userId);
+    const role = req.user?.role as UserRole;
+
+    if (!userId || !role) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid user session.",
+      });
+    }
+
+    // Check if profile exists for the user's role
+    const isProfileComplete = await ProfileService.checkUserProfiles(userId, role);
+
+    if (!isProfileComplete) {
+      return res.status(403).json({
+        success: false,
+        needsProfileCompletion: true,
+        message: "Please complete your profile to access this resource.",
+        code: "INCOMPLETE_PROFILE"
+      });
+    }
+
+    return next();
+  } catch (error) {
+    console.error("Check User Profile Error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "An internal error occurred while checking user profile.",
+    });
+  }
+}

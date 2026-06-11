@@ -1,25 +1,42 @@
-import db from '../../models/index.ts';
+import db from "../../models/index.ts";
+import {
+  generateRandomToken,
+  generateQrImageBase64,
+} from "../../services/qr.service.ts";
+import { sendEventRegistrationWithQR } from "../mail/qrMail.service.ts";
 
 type EnrollmentResult = {
   ok: boolean;
   data?: any;
-  reason?: "EVENT_NOT_FOUND" | "EVENT_NOT_APPROVED" | "ALREADY_ENROLLED" | "EVENT_FULL" | "INTERNAL_SERVER_ERROR";
+  reason?:
+    | "EVENT_NOT_FOUND"
+    | "EVENT_NOT_APPROVED"
+    | "ALREADY_ENROLLED"
+    | "EVENT_FULL"
+    | "INTERNAL_SERVER_ERROR";
 };
 
 export class EnrollmentService {
   /**
    * Enrolls a student or staff member in an event
    */
-  static async enrollInEvent(eventId: number, userId: number): Promise<EnrollmentResult> {
+  static async enrollInEvent(
+    eventId: number,
+    userId: number,
+  ): Promise<EnrollmentResult> {
     try {
       // 1. Verify event exists and is approved
-      const event = await db.Event.findByPk(eventId);
+      const event = await db.Event.findByPk(eventId, {
+        include: [{ model: db.Venue, as: "venue" }],
+      });
       if (!event) return { ok: false, reason: "EVENT_NOT_FOUND" };
-      if (event.status !== 'approved') return { ok: false, reason: "EVENT_NOT_APPROVED" };
+      if (event.status !== "approved")
+        return { ok: false, reason: "EVENT_NOT_APPROVED" };
 
-      // 2. Prevent duplicate enrollment
+      // 2. Prevent duplicate enrollment (include user data)
       const existing = await db.EventEnrollment.findOne({
-        where: { event_id: eventId, user_id: userId }
+        where: { event_id: eventId, user_id: userId },
+        include: [{ model: db.User, as: "user" }],
       });
       if (existing && existing.status !== "cancelled") {
         return { ok: false, reason: "ALREADY_ENROLLED" };
@@ -35,15 +52,68 @@ export class EnrollmentService {
 
       if (existing) {
         await existing.update({ status: "confirmed", check_in_time: null });
+
+        // Generate persistent QR token and save on enrollment
+        try {
+          const token = generateRandomToken();
+          await existing.update({
+            qr_token: token,
+            qr_issued_at: new Date(),
+          } as any);
+
+          const checkinUrl = `${process.env.FRONTEND_ORIGIN || process.env.API_ORIGIN || ""}/v1/events/enrollments/checkin-with-token?token=${encodeURIComponent(token)}`;
+          const qrDataUrl = await generateQrImageBase64(checkinUrl);
+
+          const user = existing.user ?? (await db.User.findByPk(userId));
+
+          void sendEventRegistrationWithQR({
+            to: user?.email ?? "no-reply",
+            firstName: user?.first_name ?? "",
+            eventTitle: String(event.title),
+            eventDate: String(event.start_date),
+            venue: event.venue?.name ?? "",
+            qrDataUrl,
+            checkinUrl,
+            expiry: "persistent",
+          });
+        } catch (err) {
+          console.error("QR_EMAIL_SEND_ERROR:", err);
+        }
+
         return { ok: true, data: existing };
       }
 
       // 4. Create enrollment record
+      const token = generateRandomToken();
       const enrollment = await db.EventEnrollment.create({
         event_id: eventId,
         user_id: userId,
-        status: 'confirmed'
-      });
+        status: "confirmed",
+        qr_token: token,
+        qr_issued_at: new Date(),
+      } as any);
+
+      // Generate QR image and send email to user
+      try {
+        const checkinUrl = `${process.env.FRONTEND_ORIGIN || process.env.API_ORIGIN || ""}/v1/events/enrollments/checkin-with-token?token=${encodeURIComponent(token)}`;
+        const qrDataUrl = await generateQrImageBase64(checkinUrl);
+
+        // Fetch user email/name if available
+        const user = await db.User.findByPk(userId);
+
+        void sendEventRegistrationWithQR({
+          to: user?.email ?? "no-reply",
+          firstName: user?.first_name ?? "",
+          eventTitle: String(event.title),
+          eventDate: String(event.start_date),
+          venue: event.venue?.name ?? "",
+          qrDataUrl,
+          checkinUrl,
+          expiry: "persistent",
+        });
+      } catch (err) {
+        console.error("QR_EMAIL_SEND_ERROR:", err);
+      }
 
       return { ok: true, data: enrollment };
     } catch (error) {
@@ -58,18 +128,23 @@ export class EnrollmentService {
   static async getMyEnrollments(userId: number) {
     return await db.EventEnrollment.findAll({
       where: { user_id: userId },
-      include: [{ 
-        model: db.Event, 
-        as: 'event',
-        include: ['venue'] 
-      }]
+      include: [
+        {
+          model: db.Event,
+          as: "event",
+          include: ["venue"],
+        },
+      ],
     });
   }
 
   /**
    * Mark user as checked-in to an event
    */
-  static async checkInToEvent(enrollmentId: number, userId: number): Promise<EnrollmentResult> {
+  static async checkInToEvent(
+    enrollmentId: number,
+    userId: number,
+  ): Promise<EnrollmentResult> {
     try {
       const enrollment = await db.EventEnrollment.findByPk(enrollmentId);
       if (!enrollment) return { ok: false, reason: "EVENT_NOT_FOUND" };
@@ -82,7 +157,7 @@ export class EnrollmentService {
       // Update check-in time
       await enrollment.update({
         check_in_time: new Date(),
-        status: 'attended'
+        status: "attended",
       });
 
       return { ok: true, data: enrollment };
@@ -95,7 +170,10 @@ export class EnrollmentService {
   /**
    * Cancel enrollment (unenroll from event)
    */
-  static async cancelEnrollment(enrollmentId: number, userId: number): Promise<EnrollmentResult> {
+  static async cancelEnrollment(
+    enrollmentId: number,
+    userId: number,
+  ): Promise<EnrollmentResult> {
     try {
       const enrollment = await db.EventEnrollment.findByPk(enrollmentId);
       if (!enrollment) return { ok: false, reason: "EVENT_NOT_FOUND" };
@@ -106,9 +184,12 @@ export class EnrollmentService {
       }
 
       // Update status to cancelled
-      await enrollment.update({ status: 'cancelled' });
+      await enrollment.update({ status: "cancelled" });
 
-      return { ok: true, data: { message: "Enrollment cancelled", enrollment } };
+      return {
+        ok: true,
+        data: { message: "Enrollment cancelled", enrollment },
+      };
     } catch (error) {
       console.error("CANCEL_ENROLLMENT_SERVICE_ERROR:", error);
       throw error;
@@ -118,17 +199,21 @@ export class EnrollmentService {
   /**
    * Get event attendance statistics
    */
-  static async getEventAttendanceStats(eventId: number): Promise<EnrollmentResult> {
+  static async getEventAttendanceStats(
+    eventId: number,
+  ): Promise<EnrollmentResult> {
     try {
       const event = await db.Event.findByPk(eventId);
       if (!event) return { ok: false, reason: "EVENT_NOT_FOUND" };
 
-      const totalEnrollments = await db.EventEnrollment.count({ where: { event_id: eventId } });
-      const attended = await db.EventEnrollment.count({ 
-        where: { event_id: eventId, status: 'attended' } 
+      const totalEnrollments = await db.EventEnrollment.count({
+        where: { event_id: eventId },
       });
-      const cancelled = await db.EventEnrollment.count({ 
-        where: { event_id: eventId, status: 'cancelled' } 
+      const attended = await db.EventEnrollment.count({
+        where: { event_id: eventId, status: "attended" },
+      });
+      const cancelled = await db.EventEnrollment.count({
+        where: { event_id: eventId, status: "cancelled" },
       });
 
       const stats = {
@@ -137,7 +222,10 @@ export class EnrollmentService {
         total_attended: attended,
         total_cancelled: cancelled,
         no_show: totalEnrollments - attended - cancelled,
-        attendance_rate: totalEnrollments > 0 ? ((attended / totalEnrollments) * 100).toFixed(2) : 0
+        attendance_rate:
+          totalEnrollments > 0
+            ? ((attended / totalEnrollments) * 100).toFixed(2)
+            : 0,
       };
 
       return { ok: true, data: stats };
