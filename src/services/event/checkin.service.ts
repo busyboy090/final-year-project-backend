@@ -1,7 +1,7 @@
 import db from "../../models/index.ts";
 
 export class CheckinService {
-  static async checkinWithToken(token: string) {
+  static async checkinWithToken(token: string, scanner_id?: string) {
     try {
       const enrollment = await db.EventEnrollment.findOne({
         where: { qr_token: token },
@@ -52,11 +52,26 @@ export class CheckinService {
         };
       }
 
+      // Mark as checked in, clear token (one-time use)
       await enrollment.update({
         check_in_time: new Date(),
         status: "attended",
+        qr_token: null,
       } as any);
       await enrollment.reload();
+
+      // Create audit log record (if model/table exists)
+      try {
+        if (db.EnrollmentCheckin) {
+          await db.EnrollmentCheckin.create({
+            enrollment_id: enrollment.id,
+            scanner_id: scanner_id ?? null,
+            checked_in_at: enrollment.check_in_time || new Date(),
+          } as any);
+        }
+      } catch (auditErr) {
+        console.error("CHECKIN_AUDIT_ERROR:", auditErr);
+      }
 
       return {
         ok: true,

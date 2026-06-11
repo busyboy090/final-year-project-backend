@@ -4,6 +4,7 @@ import {
   generateQrImageBase64,
 } from "../../services/qr.service.ts";
 import { sendEventRegistrationWithQR } from "../mail/qrMail.service.ts";
+import qrQueue from "../../queues/qrQueue.ts";
 
 type EnrollmentResult = {
   ok: boolean;
@@ -50,8 +51,12 @@ export class EnrollmentService {
         return { ok: false, reason: "EVENT_FULL" };
       }
 
+      // If there is an existing cancelled enrollment, reactivate and resend QR
       if (existing) {
-        await existing.update({ status: "confirmed", check_in_time: null });
+        await existing.update({
+          status: "confirmed",
+          check_in_time: null,
+        } as any);
 
         // Generate persistent QR token and save on enrollment
         try {
@@ -66,7 +71,7 @@ export class EnrollmentService {
 
           const user = existing.user ?? (await db.User.findByPk(userId));
 
-          void sendEventRegistrationWithQR({
+          const payload = {
             to: user?.email ?? "no-reply",
             firstName: user?.first_name ?? "",
             eventTitle: String(event.title),
@@ -75,7 +80,13 @@ export class EnrollmentService {
             qrDataUrl,
             checkinUrl,
             expiry: "persistent",
-          });
+          };
+
+          if (qrQueue && typeof qrQueue.add === "function") {
+            await qrQueue.add(payload, { attempts: 3, backoff: 5000 });
+          } else {
+            void sendEventRegistrationWithQR(payload);
+          }
         } catch (err) {
           console.error("QR_EMAIL_SEND_ERROR:", err);
         }
@@ -101,7 +112,7 @@ export class EnrollmentService {
         // Fetch user email/name if available
         const user = await db.User.findByPk(userId);
 
-        void sendEventRegistrationWithQR({
+        const payload = {
           to: user?.email ?? "no-reply",
           firstName: user?.first_name ?? "",
           eventTitle: String(event.title),
@@ -110,7 +121,13 @@ export class EnrollmentService {
           qrDataUrl,
           checkinUrl,
           expiry: "persistent",
-        });
+        };
+
+        if (qrQueue && typeof qrQueue.add === "function") {
+          await qrQueue.add(payload, { attempts: 3, backoff: 5000 });
+        } else {
+          void sendEventRegistrationWithQR(payload);
+        }
       } catch (err) {
         console.error("QR_EMAIL_SEND_ERROR:", err);
       }

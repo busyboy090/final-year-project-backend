@@ -3,6 +3,7 @@ import path from "path";
 import sendMail from "../../config/resend.ts";
 import { fileURLToPath } from "url";
 import config from "../../config/env.ts";
+import qrQueue from "../../queues/qrQueue.ts";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -38,6 +39,17 @@ export const sendEventRegistrationWithQR = async (payload: Payload) => {
       .replace(/{{checkinUrl}}/g, payload.checkinUrl)
       .replace(/{{expiry}}/g, payload.expiry);
 
+    // If queue is configured, enqueue the payload and let worker send it
+    try {
+      if (qrQueue && typeof qrQueue.add === "function") {
+        await qrQueue.add(payload, { attempts: 3, backoff: 5000 });
+        return { success: true, enqueued: true };
+      }
+    } catch (qErr) {
+      console.error("QR_QUEUE_ENQUEUE_ERROR:", qErr);
+    }
+
+    // Fallback: send directly
     const { error } = await sendMail({
       from: `noreply@${config.DOMAIN}`,
       to: payload.to,
@@ -51,3 +63,5 @@ export const sendEventRegistrationWithQR = async (payload: Payload) => {
     return { success: false, error };
   }
 };
+
+export default sendEventRegistrationWithQR;
