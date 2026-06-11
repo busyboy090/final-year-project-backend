@@ -112,4 +112,26 @@ export class EnrollmentController {
       return res.status(500).json({ success: false, message: "Internal server error" });
     }
   }
+
+  /**
+   * Export registrants to CSV
+   */
+  static async exportRegistrantsCSV(req: Request, res: Response) {
+    try {
+      // Use req.params.id since it is registered in event.route.ts as /:id/registrants/export
+      const eventId = Number(req.params.id);
+      
+      const result = await EnrollmentService.exportRegistrantsCSV(eventId);
+
+      if (result.ok) {
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', `attachment; filename="event-${eventId}-registrants.csv"`);
+        return res.status(200).send(result.data);
+      }
+
+      return res.status(404).json({ success: false, message: "Event not found" });
+    } catch (error) {
+      return res.status(500).json({ success: false, message: "Internal server error" });
+    }
+  }
 }

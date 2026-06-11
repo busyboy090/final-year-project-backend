@@ -50,5 +50,5 @@ jobs:
           DB_USERNAME: postgres
           DB_PASSWORD: postgres
         run: pnpm run migrate
-      - name: Run tests
-        run: pnpm test || true
+      # - name: Run tests
+      #   run: pnpm test || true

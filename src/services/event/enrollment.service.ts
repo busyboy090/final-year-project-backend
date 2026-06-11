@@ -266,6 +266,63 @@ export class EnrollmentService {
       throw error;
     }
   }
+
+  /**
+   * Export registrants to CSV
+   */
+  static async exportRegistrantsCSV(eventId: number): Promise<EnrollmentResult> {
+    try {
+      const event = await db.Event.findByPk(eventId);
+      if (!event) return { ok: false, reason: "EVENT_NOT_FOUND" };
+
+      const enrollments = await db.EventEnrollment.findAll({
+        where: { event_id: eventId },
+        include: [{ model: db.User, as: "user" }],
+        order: [["created_at", "DESC"]],
+      });
+
+      const headers = [
+        "ID",
+        "First Name",
+        "Last Name",
+        "Email",
+        "Role",
+        "Status",
+        "Enrolled At",
+        "Check-in Time"
+      ];
+
+      const escapeCSV = (val: any) => {
+        if (val === null || val === undefined) return '""';
+        const str = String(val);
+        if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+          return `"${str.replace(/"/g, '""')}"`;
+        }
+        return str;
+      };
+
+      const rows = enrollments.map((e: any) => {
+        const u = e.user;
+        return [
+          e.id,
+          u?.first_name || "",
+          u?.last_name || "",
+          u?.email || "",
+          u?.role || "",
+          e.status,
+          e.created_at ? new Date(e.created_at).toISOString() : "",
+          e.check_in_time ? new Date(e.check_in_time).toISOString() : ""
+        ].map(escapeCSV).join(",");
+      });
+
+      const csvContent = [headers.join(","), ...rows].join("\n");
+
+      return { ok: true, data: csvContent };
+    } catch (error) {
+      console.error("EXPORT_REGISTRANTS_SERVICE_ERROR:", error);
+      throw error;
+    }
+  }
 }
 
 export default EnrollmentService;

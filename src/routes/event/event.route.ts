@@ -7,6 +7,7 @@ import * as EventMiddleware from "../../middlewares/event.ts";
 import { validate } from "../../middlewares/validate.ts";
 import * as EventSchema from "../../validators/event/create.schema.ts";
 import { upload } from "../../config/multer.ts";
+import { EnrollmentController } from "../../controllers/event/enrollment.controller.ts";
 
 const router: Router = Router();
 
@@ -295,6 +296,39 @@ router.patch(
   hasRole(["event-organiser", "super-admin"]),
   EventMiddleware.verifyEventOwner,
   EventController.cancel,
+);
+
+/**
+ * @swagger
+ * /api/v1/events/{id}/registrants/export:
+ *   get:
+ *     tags:
+ *       - Events
+ *     summary: Export registrants to CSV
+ *     description: Export detailed registrant list as a CSV file (for organisers).
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: CSV file of registrants
+ *         content:
+ *           text/csv:
+ *             schema:
+ *               type: string
+ *               format: binary
+ */
+router.get(
+  "/:id/registrants/export",
+  authenticate,
+  hasRole(["event-organiser", "super-admin"]),
+  EventMiddleware.verifyEventOwner,
+  EnrollmentController.exportRegistrantsCSV
 );
 
 export default router;
