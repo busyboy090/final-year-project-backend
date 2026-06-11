@@ -1,4 +1,8 @@
 import swaggerJsdoc from "swagger-jsdoc";
+import env from "./env.ts";
+
+// Check if the current environment is production
+const isProduction = env.NODE_ENV === "production";
 
 /**
  * Swagger Configuration Options
@@ -232,8 +236,10 @@ const options: swaggerJsdoc.Options = {
       },
     },
   },
-  // Scan all source files — controllers and routes include JSDoc comments that will be parsed
-  apis: ["./src/**/*.ts"],
+ // Dynamically target TS in development and compiled JS in production
+  apis: isProduction 
+    ? ["./dist/**/*.js", "./build/**/*.js"] // Adjust to match your exact build output folder
+    : ["./src/**/*.ts"],
 };
 
 const swaggerSpec = swaggerJsdoc(options);
