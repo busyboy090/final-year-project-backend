@@ -1,15 +1,11 @@
 import swaggerJsdoc from "swagger-jsdoc";
-import path from "path";
 import env from "./env.ts"
-import { fileURLToPath } from "url";
 
 /**
  * Swagger Configuration Options
  * Admiralty University of Nigeria — Event Management System API.
  */
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 const isProd = env.NODE_ENV === "production";
 
 const options: swaggerJsdoc.Options = {
@@ -294,14 +290,7 @@ const options: swaggerJsdoc.Options = {
       },
     },
   },
-  // In production (after tsc), scan compiled .js files in dist/.
-  // In development, scan .ts source files directly.
-  apis: [
-    path.join(
-      __dirname,
-      isProd ? "../../dist/**/*.js" : "../**/*.ts"
-    ),
-  ],
+  apis: ["./src/**/*.ts"],
 };
 
 const swaggerSpec = swaggerJsdoc(options);
