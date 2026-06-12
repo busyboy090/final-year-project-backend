@@ -19,7 +19,7 @@ const router: Router = Router();
 // Routes
 /**
  * @swagger
- * /api/v1/csrf-token:
+ * /api/csrf-token:
  *   get:
  *     tags:
  *       - Security
@@ -44,33 +44,33 @@ router.get("/csrf-token", (req: Request, res: Response) => {
 });
 
 // Auth Routes
-router.use("/auth", AuthRoutes);
+router.use("/v1/auth", AuthRoutes);
 
 // Admin Routes
-router.use("/admin", AdminRoutes);
+router.use("/v1/admin", AdminRoutes);
 
 // User Routes
-router.use("/user", UserRoutes);
+router.use("/v1/user", UserRoutes);
 
 // Levels Routes
-router.use("/levels", LevelRoutes);
+router.use("/v1/levels", LevelRoutes);
 
 // Departments Routes
-router.use("/departments", DepartmentRoutes);
+router.use("/v1/departments", DepartmentRoutes);
 
 // Venue Routes
-router.use("/venues", VenueRoutes);
+router.use("/v1/venues", VenueRoutes);
 
 // Event Routes
-router.use("/events", EventRoutes);
+router.use("/v1/events", EventRoutes);
 
 // Faculty Routes
-router.use("/faculties", FacultyRoutes);
+router.use("/v1/faculties", FacultyRoutes);
 
 // Facility Routes
-router.use("/facilities", FacilityRoutes);
+router.use("/v1/facilities", FacilityRoutes);
 
 // Organisation Routes
-router.use("/organisations", OrganisationRoutes);
+router.use("/v1/organisations", OrganisationRoutes);
 
 export default router;

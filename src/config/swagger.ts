@@ -1,9 +1,17 @@
 import swaggerJsdoc from "swagger-jsdoc";
+import path from "path";
+import env from "./env.ts"
+import { fileURLToPath } from "url";
 
 /**
  * Swagger Configuration Options
  * Admiralty University of Nigeria — Event Management System API.
  */
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const isProd = env.NODE_ENV === "production";
+
 const options: swaggerJsdoc.Options = {
   definition: {
     openapi: "3.0.0",
@@ -15,9 +23,8 @@ const options: swaggerJsdoc.Options = {
     },
     servers: [
       {
-        url: "/",
-        description:
-          "Same-origin server (paths include `/api` where applicable)",
+        url: env.API_ORIGIN ?? "http://localhost:3000",
+        description: isProd ? "Production server" : "Local development server",
       },
     ],
     tags: [
@@ -140,6 +147,61 @@ const options: swaggerJsdoc.Options = {
           },
         },
 
+        // Auth: OTP / password reset
+        OtpRequest: {
+          type: "object",
+          required: ["otp"],
+          properties: {
+            otp: {
+              type: "string",
+              minLength: 6,
+              maxLength: 6,
+              example: "482910",
+              description: "6-digit one-time password",
+            },
+          },
+        },
+        EmailRequest: {
+          type: "object",
+          required: ["email"],
+          properties: {
+            email: {
+              type: "string",
+              format: "email",
+              example: "student@adun.edu.ng",
+            },
+          },
+        },
+        VerifyResetPasswordRequest: {
+          type: "object",
+          required: ["email", "otp"],
+          properties: {
+            email: { type: "string", format: "email" },
+            otp: {
+              type: "string",
+              minLength: 6,
+              maxLength: 6,
+              example: "193847",
+            },
+          },
+        },
+        ResetPasswordRequest: {
+          type: "object",
+          required: ["password", "confirm_password"],
+          properties: {
+            password: {
+              type: "string",
+              minLength: 8,
+              description: "New password",
+            },
+            confirm_password: {
+              type: "string",
+              minLength: 8,
+              description: "Must match password",
+            },
+          },
+        },
+
         // Event related
         Venue: {
           type: "object",
@@ -232,8 +294,14 @@ const options: swaggerJsdoc.Options = {
       },
     },
   },
-  // Scan all source files — controllers and routes include JSDoc comments that will be parsed
-  apis: ["./src/**/*.ts"],
+  // In production (after tsc), scan compiled .js files in dist/.
+  // In development, scan .ts source files directly.
+  apis: [
+    path.join(
+      __dirname,
+      isProd ? "../../dist/**/*.js" : "../**/*.ts"
+    ),
+  ],
 };
 
 const swaggerSpec = swaggerJsdoc(options);

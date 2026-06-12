@@ -76,7 +76,7 @@ router.post(
  *           schema:
  *             $ref: '#/components/schemas/OtpRequest'
  *     responses:
- *       200:
+ *       '200':
  *         description: Email verified
  */
 router.patch(
