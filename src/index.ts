@@ -93,7 +93,7 @@ app.use((req: Request, res: Response) => {
 // Error handler
 app.use(async (err: any, _req: any, res: Response, _next: any) => {
   try {
-      console.error(err);
+      env.NODE_ENV === 'development' && console.error(err);
 
       // Specific Handle for CSRF Errors
       if (err.code === 'EBADCSRFTOKEN') {

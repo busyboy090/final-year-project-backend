@@ -36,7 +36,8 @@ const baseOrigins: string[] = (config.ALLOWED_ORIGINS || "")
   .split(",")
   .map((o) => o.trim())
   .filter(Boolean);
-// Include API_ORIGIN and frontend origin aliases from env to allow CORS for those origins
+
+// Include API_ORIGIN and frontend origin aliases from env
 const additionalOrigins: string[] = [
   config.API_ORIGIN,
   config.FRONTEND_ORIGIN,
@@ -53,12 +54,13 @@ const combinedBaseOrigins: string[] = Array.from(
 const allowAllOrigins: boolean =
   combinedBaseOrigins.includes("*") ||
   (config.ALLOWED_ORIGINS || "").trim() === "*";
+
 const finalWhitelist: string[] =
   config.NODE_ENV === "development"
     ? [...combinedBaseOrigins, ...developmentOrigins]
     : [...combinedBaseOrigins];
 
-// Specific endpoints allowed to bypass strict origin checks
+// Endpoints that bypass strict origin checks (no-origin / browser-direct requests)
 const allowedSelectedEndpoints: string[] = [
   "/health",
   "/api-docs",
@@ -76,20 +78,29 @@ const allowedSelectedEndpoints: string[] = [
  * Check if origin is allowed
  */
 const isOriginAllowed = (origin: string | undefined, req: Request): boolean => {
-  // 0. If ALLOWED_ORIGINS contains a wildcard '*' we allow all origins
+  // 0. Wildcard — allow all origins
   if (allowAllOrigins) return true;
 
-  // 1. Allow if the origin is explicitly in our whitelist
+  // 1. Origin is explicitly whitelisted
   if (origin && finalWhitelist.includes(origin)) return true;
 
-  // 2. Allow if there is no origin (Non-browser) and we aren't in production
+  // 2. Same-origin requests from the API server itself (Scalar "Try it" calls
+  //    fired from the docs page arrive with the API's own origin)
+  const apiBaseUrl = config.API_ORIGIN;
+  if (origin && apiBaseUrl && origin === apiBaseUrl.replace(/\/$/, "")) {
+    return true;
+  }
+
+  // 3. No origin in development — allow (non-browser tools, curl, etc.)
   if (!origin && config.NODE_ENV !== "production") return true;
 
-  // 3. Special Case: Allow specific endpoints even if no origin is present
+  // 4. No origin but request is to a public endpoint — allow in all envs.
+  //    This covers Scalar's internal spec fetch (/api-docs/openapi.json) and
+  //    any server-side or tool-based requests to the listed paths.
   if (
     !origin &&
     req &&
-    allowedSelectedEndpoints.some((path) => req.url.includes(path))
+    allowedSelectedEndpoints.some((path) => req.url.startsWith(path))
   ) {
     return true;
   }
@@ -98,7 +109,7 @@ const isOriginAllowed = (origin: string | undefined, req: Request): boolean => {
 };
 
 /**
- * CORS options function
+ * CORS options delegate
  */
 const corsOptionsDelegate = (
   req: Request,
