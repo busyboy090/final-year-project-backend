@@ -399,6 +399,21 @@ const options: swaggerJsdoc.Options = {
             },
           },
         },
+        EventDashboardStats: {
+          type: "object",
+          properties: {
+            total_events: { type: "integer" },
+            pending_approval: { type: "integer" },
+            approved_events: { type: "integer" },
+            rejected_events: { type: "integer" },
+            cancelled_events: { type: "integer" },
+            upcoming_events: { type: "integer" },
+            active_events: { type: "integer" },
+            past_events: { type: "integer" },
+            total_registrations: { type: "integer" },
+            attended_registrations: { type: "integer" },
+          },
+        },
 
         // Enrollment
         Enrollment: {

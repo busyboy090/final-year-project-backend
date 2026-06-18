@@ -576,6 +576,8 @@ export class EventService {
         upcomingEvents,
         activeEvents,
         pastEvents,
+        totalRegistrations,
+        attendedRegistrations,
       ] = await Promise.all([
         db.Event.count({ where: baseWhere }),
         db.Event.count({ where: { ...baseWhere, status: "pending" } }),
@@ -604,6 +606,18 @@ export class EventService {
             end_date: { [Op.lt]: now },
           },
         }),
+        db.EventEnrollment.count({
+          where: { status: { [Op.in]: ["confirmed", "attended"] } },
+          include: userId
+            ? [{ model: db.Event, as: "event", where: baseWhere }]
+            : undefined,
+        }),
+        db.EventEnrollment.count({
+          where: { status: "attended" },
+          include: userId
+            ? [{ model: db.Event, as: "event", where: baseWhere }]
+            : undefined,
+        }),
       ]);
 
       const stats = {
@@ -615,6 +629,8 @@ export class EventService {
         upcoming_events: upcomingEvents,
         active_events: activeEvents,
         past_events: pastEvents,
+        total_registrations: totalRegistrations,
+        attended_registrations: attendedRegistrations,
       };
 
       return { ok: true, data: stats };
