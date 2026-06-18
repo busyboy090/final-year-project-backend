@@ -5,7 +5,10 @@
   "main": "index.ts",
   "type": "module",
   "scripts": {
-    "test": "npm run build",
+    "test": "npm run test:unit && npm run test:integration",
+    "test:unit": "TS_NODE_TRANSPILE_ONLY=true NODE_ENV=test ACCESS_TOKEN_SECRET=test COOKIE_SECRET=test DB_URL=postgres://postgres:postgres@localhost:5432/adun_test node --loader ts-node/esm --test \"tests/unit/**/*.test.ts\"",
+    "test:integration": "TS_NODE_TRANSPILE_ONLY=true NODE_ENV=test ACCESS_TOKEN_SECRET=test COOKIE_SECRET=test DB_URL=postgres://postgres:postgres@localhost:5432/adun_test node --loader ts-node/esm --test \"tests/integration/**/*.test.ts\"",
+    "test:build": "npm run build",
     "dev": "nodemon src/index.ts",
     "start": "node -r ts-node/register src/index.ts",
     "start:prod": "node dist/index.js",

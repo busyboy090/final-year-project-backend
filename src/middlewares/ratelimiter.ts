@@ -9,11 +9,15 @@ import type { Request, Response } from 'express';
  */
 const createLimiter = (windowMs: number, max: number, defaultMessage: string, keyPrefix: string) => {
   return rateLimit({
-    store: new RedisStore({
-      // @ts-ignore
-      sendCommand: (...args: string[]) => redis.call(...args) as Promise<any>,
-      prefix: `rl:${keyPrefix}:`,
-    }),
+    ...(process.env.NODE_ENV === "test"
+      ? {}
+      : {
+          store: new RedisStore({
+            // @ts-ignore
+            sendCommand: (...args: string[]) => redis.call(...args) as Promise<any>,
+            prefix: `rl:${keyPrefix}:`,
+          }),
+        }),
     windowMs,
     max,
     standardHeaders: true,
