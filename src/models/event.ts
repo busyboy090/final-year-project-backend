@@ -6,8 +6,9 @@ import type {
   CreationOptional,
   NonAttribute
 } from 'sequelize';
-import { User } from './user.ts';
-import { Venue } from './venue.ts';
+import type { User } from './user.ts';
+import type { Venue } from './venue.ts';
+import type { EventAudienceRule } from './event_audience_rule.ts';
 import type { EventCategory, EventStatus } from '../types/event.d.ts';
 
 export class Event extends Model<InferAttributes<Event>, InferCreationAttributes<Event>> {
@@ -24,6 +25,7 @@ export class Event extends Model<InferAttributes<Event>, InferCreationAttributes
   declare capacity: number;
   declare created_by: number;
   declare status: EventStatus;
+  declare audience_scope: "all" | "custom";
 
   // Timestamps
   declare created_at: CreationOptional<Date>;
@@ -32,6 +34,7 @@ export class Event extends Model<InferAttributes<Event>, InferCreationAttributes
   // Associations (Virtual Fields)
   declare creator?: NonAttribute<User>;
   declare venue?: NonAttribute<Venue>;
+  declare audienceRules?: NonAttribute<EventAudienceRule[]>;
 
   static associate(models: any) {
     // 1. An event is created by a user (Staff/Student/Admin)
@@ -56,6 +59,11 @@ export class Event extends Model<InferAttributes<Event>, InferCreationAttributes
     Event.belongsTo(models.Organisation, {
       foreignKey: 'organisation_id',
       as: 'organisation'
+    });
+
+    Event.hasMany(models.EventAudienceRule, {
+      foreignKey: 'event_id',
+      as: 'audienceRules'
     });
   }
 }
@@ -131,6 +139,11 @@ export default (sequelize: Sequelize) => {
         type: DataTypes.ENUM('pending', 'approved', 'rejected', 'cancelled'),
         allowNull: false,
         defaultValue: 'pending'
+      },
+      audience_scope: {
+        type: DataTypes.ENUM('all', 'custom'),
+        allowNull: false,
+        defaultValue: 'all'
       },
       created_at: DataTypes.DATE,
       updated_at: DataTypes.DATE,

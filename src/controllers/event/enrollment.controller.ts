@@ -25,6 +25,8 @@ export class EnrollmentController {
           return res.status(403).json({ success: false, message: "Event capacity reached." });
         case "EVENT_NOT_APPROVED":
           return res.status(403).json({ success: false, message: "This event is not open for registration." });
+        case "AUDIENCE_RESTRICTED":
+          return res.status(403).json({ success: false, message: "This event is not available to your audience." });
         default:
           return res.status(400).json({ success: false, message: "Registration failed." });
       }

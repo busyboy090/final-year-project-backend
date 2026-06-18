@@ -17,6 +17,17 @@ const router: Router = Router();
  *     responses:
  *       200:
  *         description: List of levels
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Level'
  */
 router.get("/", authenticate, LevelController.getAllLevels);
 
@@ -29,6 +40,28 @@ router.get("/", authenticate, LevelController.getAllLevels);
  *     summary: Create a new level (admin)
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - $ref: '#/components/parameters/CsrfHeader'
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/LevelRequest'
+ *     responses:
+ *       201:
+ *         description: Level created
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   $ref: '#/components/schemas/Level'
+ *       400:
+ *         $ref: '#/components/schemas/ValidationErrorResponse'
  */
 router.post("/", authenticate, requireSuperAdmin, LevelController.createLevel);
 

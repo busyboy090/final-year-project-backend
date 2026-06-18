@@ -45,6 +45,7 @@ router.use("/enrollments", EnrollmentRoutes);
  *     tags:
  *       - Events
  *     summary: Get event details
+ *     description: Returns one event with venue, organisation, calculated fill percentage, and audience rules. Staff/student users receive 403 if the event does not match their audience profile.
  *     parameters:
  *       - name: id
  *         in: path
@@ -59,7 +60,19 @@ router.use("/enrollments", EnrollmentRoutes);
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/Event'
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   $ref: '#/components/schemas/Event'
+ *       403:
+ *         description: Event exists but is not available to the authenticated user's audience.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorMessage'
  *       404:
  *         $ref: '#/components/schemas/ErrorMessage'
  */
@@ -72,7 +85,7 @@ router.get("/:id", authenticate, EventController.getById);
  *     tags:
  *       - Events
  *     summary: List events
- *     description: Returns a paginated list of events with optional filters.
+ *     description: Returns a paginated list of events with optional filters. Staff/student users only receive events matching their audience profile; super-admins and event organisers can see all matching events.
  *     parameters:
  *       - name: page
  *         in: query
@@ -86,10 +99,44 @@ router.get("/:id", authenticate, EventController.getById);
  *         in: query
  *         schema:
  *           type: string
+ *           enum: [pending, approved, rejected, cancelled]
  *       - name: search
  *         in: query
  *         schema:
  *           type: string
+ *       - name: category
+ *         in: query
+ *         schema:
+ *           type: string
+ *           enum:
+ *             - Academic Conference
+ *             - Workshop
+ *             - Cultural Event
+ *             - Sports Match
+ *             - Exhibition/Expo
+ *             - Social Gathering/Party
+ *       - name: organisation_id
+ *         in: query
+ *         schema:
+ *           type: integer
+ *       - name: venue_id
+ *         in: query
+ *         schema:
+ *           type: integer
+ *       - name: created_by
+ *         in: query
+ *         schema:
+ *           type: integer
+ *       - name: start_date_from
+ *         in: query
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *       - name: start_date_to
+ *         in: query
+ *         schema:
+ *           type: string
+ *           format: date-time
  *     security:
  *       - bearerAuth: []
  *     responses:
@@ -104,6 +151,14 @@ router.get("/:id", authenticate, EventController.getById);
  *                   type: array
  *                   items:
  *                     $ref: '#/components/schemas/Event'
+ *                 total:
+ *                   type: integer
+ *                 page:
+ *                   type: integer
+ *                 limit:
+ *                   type: integer
+ *                 pages:
+ *                   type: integer
  */
 router.get("/", authenticate, EventController.list);
 
@@ -114,7 +169,7 @@ router.get("/", authenticate, EventController.list);
  *     tags:
  *       - Events
  *     summary: Create a new event
- *     description: Create event (organiser or super-admin). Upload thumbnail as multipart form-data.
+ *     description: Create an event application as an organiser or super-admin. The schedule is submitted as discrete date/time fields. Audience fields control who can discover and register for the event after approval.
  *     parameters:
  *       - $ref: '#/components/parameters/CsrfHeader'
  *     security:
@@ -124,40 +179,79 @@ router.get("/", authenticate, EventController.list);
  *       content:
  *         multipart/form-data:
  *           schema:
- *             type: object
- *             required:
- *               - title
- *               - category
- *               - start_date
- *               - end_date
- *               - venue_id
- *             properties:
- *               title:
- *                 type: string
- *               category:
- *                 type: string
- *               description:
- *                 type: string
- *               venue_id:
- *                 type: integer
- *               capacity:
- *                 type: integer
- *               start_date:
- *                 type: string
- *                 format: date-time
- *               end_date:
- *                 type: string
- *                 format: date-time
- *               thumbnail:
- *                 type: string
- *                 format: binary
+ *             $ref: '#/components/schemas/EventCreateRequest'
+ *           encoding:
+ *             audience_rules:
+ *               contentType: application/json
+ *           examples:
+ *             everyone:
+ *               summary: Event open to all authenticated staff and students
+ *               value:
+ *                 title: Campus Leadership Forum
+ *                 category: Workshop
+ *                 description: A leadership workshop for the university community.
+ *                 venue_id: 2
+ *                 capacity: 120
+ *                 startDate: "2026-06-18"
+ *                 startTime: "10:00"
+ *                 endDate: "2026-06-18"
+ *                 endTime: "12:00"
+ *                 audience_scope: all
+ *             academicStaffOnly:
+ *               summary: Event restricted to academic staff
+ *               value:
+ *                 title: Faculty Research Briefing
+ *                 category: Academic Conference
+ *                 description: Internal briefing for academic staff members.
+ *                 venue_id: 3
+ *                 capacity: 80
+ *                 startDate: "2026-06-20"
+ *                 startTime: "09:00"
+ *                 endDate: "2026-06-20"
+ *                 endTime: "11:00"
+ *                 audience_scope: custom
+ *                 audience_rules: '[{"role":"staff","staff_type":"academic-staff","level_id":null,"gender":null}]'
+ *             female400LevelStudents:
+ *               summary: Event restricted to female 400 level students
+ *               value:
+ *                 title: Final Year Mentorship Session
+ *                 category: Workshop
+ *                 description: Mentorship session for selected final year students.
+ *                 venue_id: 4
+ *                 capacity: 60
+ *                 startDate: "2026-06-22"
+ *                 startTime: "14:00"
+ *                 endDate: "2026-06-22"
+ *                 endTime: "16:00"
+ *                 audience_scope: custom
+ *                 audience_rules: '[{"role":"student","staff_type":null,"level_id":4,"gender":"female"}]'
  *     responses:
  *       201:
  *         description: Event created
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/Event'
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   $ref: '#/components/schemas/Event'
+ *       400:
+ *         description: Validation error, invalid date range, invalid custom audience, or missing thumbnail.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               oneOf:
+ *                 - $ref: '#/components/schemas/ErrorMessage'
+ *                 - $ref: '#/components/schemas/ValidationErrorResponse'
+ *       409:
+ *         description: Venue unavailable or requested capacity exceeds venue limit.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorMessage'
  */
 router.post(
   "/",
@@ -175,6 +269,7 @@ router.post(
  *     tags:
  *       - Events
  *     summary: Update event
+ *     description: Updates event fields. If audience_scope or audience_rules is supplied, the event audience configuration is replaced. Custom audiences require at least one rule.
  *     parameters:
  *       - $ref: '#/components/parameters/CsrfHeader'
  *       - name: id
@@ -188,11 +283,49 @@ router.post(
  *       content:
  *         application/json:
  *           schema:
- *             type: object
+ *             $ref: '#/components/schemas/EventUpdateRequest'
+ *           examples:
+ *             restrictToStudents:
+ *               summary: Restrict an event to all students
+ *               value:
+ *                 audience_scope: custom
+ *                 audience_rules:
+ *                   - role: student
+ *                     level_id: null
+ *                     staff_type: null
+ *                     gender: null
+ *             openToEveryone:
+ *               summary: Remove audience restrictions
+ *               value:
+ *                 audience_scope: all
+ *                 audience_rules: []
  *     responses:
  *       200:
  *         description: Event updated
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: Event updated
+ *                 data:
+ *                   $ref: '#/components/schemas/Event'
+ *       400:
+ *         description: Validation error, invalid date range, or venue unavailable.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               oneOf:
+ *                 - $ref: '#/components/schemas/ErrorMessage'
+ *                 - $ref: '#/components/schemas/ValidationErrorResponse'
  *       403:
+ *         $ref: '#/components/schemas/ErrorMessage'
+ *       404:
  *         $ref: '#/components/schemas/ErrorMessage'
  */
 router.patch(
@@ -255,12 +388,16 @@ router.delete(
  *             properties:
  *               status:
  *                 type: string
- *                 enum: [pending, approved, rejected, cancelled]
+ *                 enum: [approved, rejected]
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
  *         description: Status updated
+ *       400:
+ *         $ref: '#/components/schemas/ValidationErrorResponse'
+ *       404:
+ *         $ref: '#/components/schemas/ErrorMessage'
  */
 router.patch(
   "/:id/status",

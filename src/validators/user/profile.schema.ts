@@ -107,6 +107,13 @@ export const staffProfileSchema = baseUserUpdateSchema.extend({
       })
       .int()
       .positive("Please select a valid department"),
+
+    staff_type: z.enum(["academic-staff", "non-academic-staff"], {
+      error: (issue) =>
+        issue.input === undefined
+          ? "Staff type is required"
+          : "Select a valid staff type",
+    }),
   }),
 });
 

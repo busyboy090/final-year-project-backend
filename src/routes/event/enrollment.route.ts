@@ -12,7 +12,7 @@ const router: Router = Router();
  *     tags:
  *       - Enrollments
  *     summary: Join an event
- *     description: Enroll the authenticated user into an event.
+ *     description: Enroll the authenticated user into an approved event. The event audience rules are enforced here as a backend security check, even if the event was hidden from the user's list view.
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -23,12 +23,57 @@ const router: Router = Router();
  *         application/json:
  *           schema:
  *             type: object
+ *             required:
+ *               - eventId
  *             properties:
  *               eventId:
  *                 type: integer
+ *                 example: 12
  *     responses:
  *       201:
  *         description: Enrollment created
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: You have successfully registered for the event.
+ *                 data:
+ *                   $ref: '#/components/schemas/Enrollment'
+ *       400:
+ *         description: Registration failed or invalid event id.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorMessage'
+ *       403:
+ *         description: Event is full, not approved, or not available to the authenticated user's audience.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorMessage'
+ *             examples:
+ *               audienceRestricted:
+ *                 summary: User does not match event audience rules
+ *                 value:
+ *                   success: false
+ *                   message: This event is not available to your audience.
+ *               eventFull:
+ *                 summary: Event capacity reached
+ *                 value:
+ *                   success: false
+ *                   message: Event capacity reached.
+ *       409:
+ *         description: User is already registered for this event.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorMessage'
  */
 router.post("/join", authenticate, EnrollmentController.join);
 
@@ -44,6 +89,23 @@ router.post("/join", authenticate, EnrollmentController.join);
  *     responses:
  *       200:
  *         description: List of user enrollments
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     allOf:
+ *                       - $ref: '#/components/schemas/Enrollment'
+ *                       - type: object
+ *                         properties:
+ *                           event:
+ *                             $ref: '#/components/schemas/Event'
  */
 router.get("/me", authenticate, EnrollmentController.getMyEvents);
 
@@ -65,6 +127,20 @@ router.get("/me", authenticate, EnrollmentController.getMyEvents);
  *     responses:
  *       200:
  *         description: Checked in
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   $ref: '#/components/schemas/Enrollment'
+ *       404:
+ *         $ref: '#/components/schemas/ErrorMessage'
  */
 router.patch(
   "/:enrollmentId/check-in",
@@ -90,6 +166,20 @@ router.patch(
  *     responses:
  *       200:
  *         description: Enrollment cancelled
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *       404:
+ *         $ref: '#/components/schemas/ErrorMessage'
  */
 router.patch(
   "/:enrollmentId/cancel",
@@ -115,6 +205,33 @@ router.patch(
  *     responses:
  *       200:
  *         description: Attendance statistics
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     event_id:
+ *                       type: integer
+ *                     total_enrolled:
+ *                       type: integer
+ *                     total_attended:
+ *                       type: integer
+ *                     total_cancelled:
+ *                       type: integer
+ *                     no_show:
+ *                       type: integer
+ *                     attendance_rate:
+ *                       oneOf:
+ *                         - type: string
+ *                         - type: number
+ *       404:
+ *         $ref: '#/components/schemas/ErrorMessage'
  */
 router.get(
   "/:eventId/stats",
@@ -136,6 +253,8 @@ router.get(
  *         application/json:
  *           schema:
  *             type: object
+ *             required:
+ *               - token
  *             properties:
  *               token:
  *                 type: string

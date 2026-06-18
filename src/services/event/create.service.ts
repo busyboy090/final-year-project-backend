@@ -4,6 +4,7 @@ import { CloudinaryHelper } from "../../helpers/cloudinary.helper.ts";
 import { Op, Sequelize } from "sequelize";
 import { sendEventCancellationEmail } from "../mail/cancellation.service.ts";
 import qrQueue from "../../queues/qrQueue.ts";
+import { EventAudienceService } from "./audience.service.ts";
 
 // Extended EventResult type to safely handle statistical metrics payloads
 type EventResult = {
@@ -16,6 +17,7 @@ type EventResult = {
     | "INVALID_DATE_RANGE"
     | "CAPACITY_EXCEEDS_VENUE_LIMIT"
     | "UNAUTHORIZED"
+    | "AUDIENCE_RESTRICTED"
     | "ORGANISER_PROFILE_NOT_FOUND";
 };
 
@@ -34,6 +36,8 @@ export class EventService {
         category,
         capacity,
         duration,
+        audience_scope = "all",
+        audience_rules = [],
       } = payload;
 
       const organiserProfile = await db.EventOrganiserProfile.findOne({
@@ -68,20 +72,32 @@ export class EventService {
         payload.thumbnail,
       );
 
-      // Explicitly define database columns instead of spreading generic payload objects
-      const newEvent = await db.Event.create({
-        title,
-        description,
-        category,
-        capacity,
-        thumbnail: thumbnailUrl,
-        duration,
-        venue_id,
-        start_date: startTimestamp,
-        end_date: endTimestamp,
-        organisation_id,
-        created_by: userId,
-        status: "pending",
+      const newEvent = await db.sequelize.transaction(async (transaction: any) => {
+        // Explicitly define database columns instead of spreading generic payload objects
+        const event = await db.Event.create({
+          title,
+          description,
+          category,
+          capacity,
+          thumbnail: thumbnailUrl,
+          duration,
+          venue_id,
+          start_date: startTimestamp,
+          end_date: endTimestamp,
+          organisation_id,
+          created_by: userId,
+          status: "pending",
+          audience_scope,
+        }, { transaction });
+
+        await EventAudienceService.replaceRules(
+          event.id,
+          audience_scope,
+          audience_rules,
+          { transaction },
+        );
+
+        return event;
       });
 
       return { ok: true, data: newEvent };
@@ -128,14 +144,38 @@ export class EventService {
         if (!isAvailable) return { ok: false, reason: "VENUE_UNAVAILABLE" };
       }
 
-      if (payload.thumbnail) {
+      const {
+        audience_rules,
+        audience_scope,
+        ...eventPayload
+      } = payload;
+
+      if (eventPayload.thumbnail) {
         const thumbnailUrl = await CloudinaryHelper.uploadSingle(
-          payload.thumbnail,
+          eventPayload.thumbnail,
         );
-        payload.thumbnail = thumbnailUrl;
+        eventPayload.thumbnail = thumbnailUrl;
       }
 
-      const updatedEvent = await event.update(payload);
+      if (audience_scope) {
+        eventPayload.audience_scope = audience_scope;
+      }
+
+      const updatedEvent = await db.sequelize.transaction(async (transaction: any) => {
+        const nextEvent = await event.update(eventPayload, { transaction });
+
+        if (audience_scope || Array.isArray(audience_rules)) {
+          await EventAudienceService.replaceRules(
+            event.id,
+            audience_scope ?? event.audience_scope,
+            audience_rules ?? [],
+            { transaction },
+          );
+        }
+
+        return nextEvent;
+      });
+
       return { ok: true, data: updatedEvent };
     } catch (error) {
       console.error("UPDATE_EVENT_SERVICE_ERROR:", error);
@@ -150,6 +190,7 @@ export class EventService {
   static async getAllEvents(
     filters: any = {},
     pagination: any = {},
+    userId?: number,
   ): Promise<EventResult> {
     try {
       const targetLimit = pagination.limit || filters.limit || 10;
@@ -206,6 +247,54 @@ export class EventService {
         where.title = { [Op.iLike]: `%${filters.search}%` };
       }
 
+      const audienceProfile = userId
+        ? await EventAudienceService.getUserAudienceProfile(userId)
+        : null;
+
+      if (
+        audienceProfile &&
+        !EventAudienceService.canManageAllEvents(audienceProfile) &&
+        ["staff", "student"].includes(audienceProfile.role)
+      ) {
+        const profileFilters: any[] = [
+          { "$audienceRules.role$": audienceProfile.role },
+          {
+            [Op.or]: [
+              { "$audienceRules.gender$": null },
+              { "$audienceRules.gender$": audienceProfile.gender },
+            ],
+          },
+        ];
+
+        if (audienceProfile.role === "staff") {
+          profileFilters.push({
+            [Op.or]: [
+              { "$audienceRules.staff_type$": null },
+              { "$audienceRules.staff_type$": audienceProfile.staff_type },
+            ],
+          });
+        }
+
+        if (audienceProfile.role === "student") {
+          profileFilters.push({
+            [Op.or]: [
+              { "$audienceRules.level_id$": null },
+              { "$audienceRules.level_id$": audienceProfile.level_id },
+            ],
+          });
+        }
+
+        where[Op.and] = [
+          ...(Array.isArray(where[Op.and]) ? where[Op.and] : []),
+          {
+            [Op.or]: [
+              { audience_scope: "all" },
+              { [Op.and]: profileFilters },
+            ],
+          },
+        ];
+      }
+
       const { rows, count } = await db.Event.findAndCountAll({
         where,
         attributes: {
@@ -245,11 +334,24 @@ export class EventService {
             as: "organisation",
             attributes: ["id", "name"],
           },
+          {
+            model: db.EventAudienceRule,
+            as: "audienceRules",
+            required: false,
+            include: [
+              {
+                model: db.Level,
+                as: "level",
+                attributes: ["id", "name", "code"],
+              },
+            ],
+          },
         ],
         order: [["start_date", "ASC"]],
         limit,
         offset,
         distinct: true,
+        subQuery: false,
       });
 
       return {
@@ -271,7 +373,7 @@ export class EventService {
   /**
    * Resolves target records by Primary Identifier Key, injecting runtime fill tracking metrics.
    */
-  static async getEventById(eventId: number): Promise<EventResult> {
+  static async getEventById(eventId: number, userId?: number): Promise<EventResult> {
     try {
       const event = await db.Event.findByPk(eventId, {
         attributes: {
@@ -311,9 +413,29 @@ export class EventService {
             as: "organisation",
             attributes: ["id", "name"],
           },
+          {
+            model: db.EventAudienceRule,
+            as: "audienceRules",
+            required: false,
+            include: [
+              {
+                model: db.Level,
+                as: "level",
+                attributes: ["id", "name", "code"],
+              },
+            ],
+          },
         ],
       });
       if (!event) return { ok: false, reason: "EVENT_NOT_FOUND" };
+
+      if (userId) {
+        const profile = await EventAudienceService.getUserAudienceProfile(userId);
+        if (!EventAudienceService.eventMatchesProfile(event, profile)) {
+          return { ok: false, reason: "AUDIENCE_RESTRICTED" };
+        }
+      }
+
       return { ok: true, data: event };
     } catch (error) {
       console.error("GET_EVENT_SERVICE_ERROR:", error);

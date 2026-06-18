@@ -41,6 +41,10 @@ export class EventController {
         start_date: start,
         end_date: end,
         duration: durationInMinutes,
+        audience_scope: form.audience_scope ?? "all",
+        audience_rules: Array.isArray(form.audience_rules)
+          ? form.audience_rules
+          : JSON.parse(form.audience_rules || "[]"),
       };
 
       // 4. Delegate to backend event engine service
@@ -78,11 +82,20 @@ export class EventController {
       const form = req.body;
 
       const backendPayload: any = {
-        title: form.eventTitle,
+        title: form.title ?? form.eventTitle,
         category: form.category,
         description: form.description,
-        venue_id: form.selectedVenue ? Number(form.selectedVenue) : undefined,
+        venue_id: form.venue_id
+          ? Number(form.venue_id)
+          : form.selectedVenue
+            ? Number(form.selectedVenue)
+            : undefined,
         capacity: form.capacity ? Number(form.capacity) : undefined,
+        audience_scope: form.audience_scope,
+        audience_rules:
+          typeof form.audience_rules === "string"
+            ? JSON.parse(form.audience_rules || "[]")
+            : form.audience_rules,
       };
 
       if (form.startDate && form.startTime)
@@ -126,7 +139,7 @@ export class EventController {
   static async list(req: Request, res: Response) {
     try {
       const { page, limit, ...filters } = req.query;
-      const result = await EventService.getAllEvents(filters, { page, limit });
+      const result = await EventService.getAllEvents(filters, { page, limit }, Number(req.user?.userId));
       return res.status(200).json({ success: true, ...result.data });
     } catch (error) {
       return res
@@ -141,10 +154,14 @@ export class EventController {
   static async getById(req: Request, res: Response) {
     try {
       const eventId = Number(req.params.id);
-      const result = await EventService.getEventById(eventId);
+      const result = await EventService.getEventById(eventId, Number(req.user?.userId));
 
       if (result.ok) {
         return res.status(200).json({ success: true, data: result.data });
+      }
+
+      if (result.reason === "AUDIENCE_RESTRICTED") {
+        return res.status(403).json({ success: false, message: "This event is not available to your audience." });
       }
 
       return res.status(404).json({ success: false, message: "Event not found" });

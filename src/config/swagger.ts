@@ -35,6 +35,7 @@ const options: swaggerJsdoc.Options = {
         name: "Organisations",
         description: "Organisations, faculties and departments",
       },
+      { name: "Levels", description: "Student academic levels" },
       { name: "Admin", description: "Administrative reports and actions" },
       { name: "Files", description: "File uploads (thumbnails, images)" },
     ],
@@ -224,22 +225,178 @@ const options: swaggerJsdoc.Options = {
               type: "string",
               enum: ["pending", "approved", "rejected", "cancelled"],
             },
+            audience_scope: {
+              type: "string",
+              enum: ["all", "custom"],
+              description:
+                "`all` allows every authenticated staff/student to discover and register. `custom` applies audienceRules.",
+              example: "custom",
+            },
+            audienceRules: {
+              type: "array",
+              description:
+                "Audience eligibility rules. Returned when event endpoints include audience metadata.",
+              items: { $ref: "#/components/schemas/EventAudienceRule" },
+            },
+            fillPercentage: {
+              type: "number",
+              nullable: true,
+              description:
+                "Calculated percentage of non-cancelled enrollments against capacity.",
+              example: 42.5,
+            },
             venue: { $ref: "#/components/schemas/Venue" },
             organisation: { type: "object" },
           },
         },
+        EventAudienceRule: {
+          type: "object",
+          description:
+            "One audience rule. Nullable fields mean any value for that dimension. Multiple rules are OR'd together.",
+          required: ["role"],
+          properties: {
+            id: { type: "integer", readOnly: true },
+            event_id: { type: "integer", readOnly: true },
+            role: {
+              type: "string",
+              enum: ["staff", "student"],
+              description: "Target account role for this rule.",
+              example: "student",
+            },
+            staff_type: {
+              type: "string",
+              nullable: true,
+              enum: ["academic-staff", "non-academic-staff"],
+              description:
+                "Only used when role is `staff`. Null means all staff types.",
+              example: null,
+            },
+            level_id: {
+              type: "integer",
+              nullable: true,
+              description:
+                "Only used when role is `student`. Null means all student levels.",
+              example: 4,
+            },
+            gender: {
+              type: "string",
+              nullable: true,
+              enum: ["male", "female", "other"],
+              description: "Null means all genders.",
+              example: "female",
+            },
+            level: {
+              type: "object",
+              nullable: true,
+              readOnly: true,
+              properties: {
+                id: { type: "integer" },
+                name: { type: "string", example: "400 Level" },
+                code: { type: "string", example: "400" },
+              },
+            },
+          },
+        },
+        EventAudienceRuleInput: {
+          type: "object",
+          description:
+            "Audience rule submitted during event create/update. Nullable or omitted fields mean any value for that dimension.",
+          required: ["role"],
+          properties: {
+            role: {
+              type: "string",
+              enum: ["staff", "student"],
+              example: "staff",
+            },
+            staff_type: {
+              type: "string",
+              nullable: true,
+              enum: ["academic-staff", "non-academic-staff"],
+              description:
+                "Only valid for staff rules. Omit/null for all staff.",
+              example: "academic-staff",
+            },
+            level_id: {
+              type: "integer",
+              nullable: true,
+              description:
+                "Only valid for student rules. Omit/null for all levels.",
+              example: null,
+            },
+            gender: {
+              type: "string",
+              nullable: true,
+              enum: ["male", "female", "other"],
+              description: "Omit/null for all genders.",
+              example: null,
+            },
+          },
+        },
         EventCreateRequest: {
           type: "object",
-          required: ["title", "category", "start_date", "end_date", "venue_id"],
+          required: [
+            "title",
+            "category",
+            "description",
+            "startDate",
+            "startTime",
+            "endDate",
+            "endTime",
+            "venue_id",
+            "capacity",
+            "thumbnail",
+          ],
           properties: {
             title: { type: "string" },
             category: { type: "string" },
             description: { type: "string" },
             venue_id: { type: "integer" },
             capacity: { type: "integer" },
-            start_date: { type: "string", format: "date-time" },
-            end_date: { type: "string", format: "date-time" },
-            duration: { type: "integer" },
+            startDate: { type: "string", format: "date", example: "2026-06-18" },
+            startTime: { type: "string", example: "10:00" },
+            endDate: { type: "string", format: "date", example: "2026-06-18" },
+            endTime: { type: "string", example: "12:00" },
+            audience_scope: {
+              type: "string",
+              enum: ["all", "custom"],
+              default: "all",
+            },
+            audience_rules: {
+              type: "array",
+              description:
+                "Required when audience_scope is `custom`. For multipart requests this is sent as a JSON string containing the array.",
+              items: { $ref: "#/components/schemas/EventAudienceRuleInput" },
+            },
+            thumbnail: {
+              type: "string",
+              format: "binary",
+            },
+          },
+        },
+        EventUpdateRequest: {
+          type: "object",
+          description:
+            "Partial event update payload. Updating audience_scope or audience_rules replaces the event's audience rule set.",
+          properties: {
+            eventTitle: { type: "string", deprecated: true },
+            title: { type: "string" },
+            category: { type: "string" },
+            description: { type: "string" },
+            selectedVenue: { type: "integer", deprecated: true },
+            venue_id: { type: "integer" },
+            capacity: { type: "integer" },
+            startDate: { type: "string", format: "date" },
+            startTime: { type: "string" },
+            endDate: { type: "string", format: "date" },
+            endTime: { type: "string" },
+            audience_scope: {
+              type: "string",
+              enum: ["all", "custom"],
+            },
+            audience_rules: {
+              type: "array",
+              items: { $ref: "#/components/schemas/EventAudienceRuleInput" },
+            },
           },
         },
 
@@ -266,7 +423,19 @@ const options: swaggerJsdoc.Options = {
           properties: {
             id: { type: "integer" },
             name: { type: "string" },
-            address: { type: "string" },
+            faculty_id: { type: "integer", nullable: true },
+            department_id: { type: "integer", nullable: true },
+            faculty: { $ref: "#/components/schemas/Faculty" },
+            department: { $ref: "#/components/schemas/Department" },
+          },
+        },
+        OrganisationRequest: {
+          type: "object",
+          required: ["name"],
+          properties: {
+            name: { type: "string", example: "Student Affairs" },
+            faculty_id: { type: "integer", nullable: true, example: null },
+            department_id: { type: "integer", nullable: true, example: 3 },
           },
         },
         Faculty: {
@@ -276,6 +445,32 @@ const options: swaggerJsdoc.Options = {
         Department: {
           type: "object",
           properties: { id: { type: "integer" }, name: { type: "string" } },
+        },
+        Level: {
+          type: "object",
+          properties: {
+            id: { type: "integer" },
+            name: { type: "string", example: "400 Level" },
+            code: { type: "string", example: "400" },
+            category: {
+              type: "string",
+              enum: ["undergraduate", "postgraduate"],
+              example: "undergraduate",
+            },
+          },
+        },
+        LevelRequest: {
+          type: "object",
+          required: ["name", "code", "category"],
+          properties: {
+            name: { type: "string", example: "400 Level" },
+            code: { type: "string", example: "400" },
+            category: {
+              type: "string",
+              enum: ["undergraduate", "postgraduate"],
+              example: "undergraduate",
+            },
+          },
         },
 
         // Misc

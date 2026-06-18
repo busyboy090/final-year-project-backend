@@ -33,6 +33,17 @@ const router: Router = Router();
  *     responses:
  *       200:
  *         description: A list of organisations
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Organisation'
  */
 router.get(
   "/",
@@ -56,6 +67,15 @@ router.get(
  *     responses:
  *       200:
  *         description: Organisation details
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   $ref: '#/components/schemas/Organisation'
  *       404:
  *         $ref: '#/components/schemas/ErrorMessage'
  */
@@ -80,13 +100,23 @@ router.use(authenticate, requireSuperAdmin);
  *     parameters:
  *       - $ref: '#/components/parameters/CsrfHeader'
  *     requestBody:
+ *       required: true
  *       content:
  *         application/json:
  *           schema:
- *             type: object
+ *             $ref: '#/components/schemas/OrganisationRequest'
  *     responses:
  *       201:
  *         description: Organisation created
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   $ref: '#/components/schemas/Organisation'
  */
 router.post(
   "/",
@@ -113,10 +143,19 @@ router.post(
  *       content:
  *         application/json:
  *           schema:
- *             type: object
+ *             $ref: '#/components/schemas/OrganisationRequest'
  *     responses:
  *       200:
  *         description: Organisation updated
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   $ref: '#/components/schemas/Organisation'
  */
 router.patch(
   "/:id",

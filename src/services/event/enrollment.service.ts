@@ -6,6 +6,7 @@ import {
 } from "../../services/qr.service.ts";
 import { sendEventRegistrationWithQR } from "../mail/qrMail.service.ts";
 import qrQueue from "../../queues/qrQueue.ts";
+import { EventAudienceService } from "./audience.service.ts";
 
 type EnrollmentResult = {
   ok: boolean;
@@ -13,6 +14,7 @@ type EnrollmentResult = {
   reason?:
     | "EVENT_NOT_FOUND"
     | "EVENT_NOT_APPROVED"
+    | "AUDIENCE_RESTRICTED"
     | "ALREADY_ENROLLED"
     | "EVENT_FULL"
     | "INTERNAL_SERVER_ERROR";
@@ -34,6 +36,14 @@ export class EnrollmentService {
       if (!event) return { ok: false, reason: "EVENT_NOT_FOUND" };
       if (event.status !== "approved")
         return { ok: false, reason: "EVENT_NOT_APPROVED" };
+
+      const audienceCheck = await EventAudienceService.canUserAccessEvent(
+        eventId,
+        userId,
+      );
+      if (!audienceCheck.ok) {
+        return { ok: false, reason: "AUDIENCE_RESTRICTED" };
+      }
 
       // 2. Prevent duplicate enrollment (include user data)
       const existing = await db.EventEnrollment.findOne({

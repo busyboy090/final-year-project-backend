@@ -30,6 +30,59 @@ const validDateTimeRange = (data: {
   return end > start;
 };
 
+const audienceRuleSchema = z
+  .object({
+    role: z.enum(["staff", "student"]),
+    staff_type: z
+      .enum(["academic-staff", "non-academic-staff"])
+      .nullable()
+      .optional(),
+    level_id: z.coerce.number().int().positive().nullable().optional(),
+    gender: z.enum(["male", "female", "other"]).nullable().optional(),
+  })
+  .superRefine((rule, ctx) => {
+    if (rule.role === "staff" && rule.level_id) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["level_id"],
+        message: "Staff audience rules cannot include a student level",
+      });
+    }
+
+    if (rule.role === "student" && rule.staff_type) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["staff_type"],
+        message: "Student audience rules cannot include a staff type",
+      });
+    }
+  });
+
+const parseAudienceRules = (value: unknown) => {
+  if (value === undefined || value === null || value === "") return [];
+  if (Array.isArray(value)) return value;
+  if (typeof value !== "string") return value;
+
+  try {
+    return JSON.parse(value);
+  } catch {
+    return value;
+  }
+};
+
+const audienceFields = {
+  audience_scope: z.enum(["all", "custom"]).default("all"),
+  audience_rules: z.preprocess(
+    parseAudienceRules,
+    z.array(audienceRuleSchema).default([]),
+  ),
+};
+
+const validAudienceConfig = (data: {
+  audience_scope?: "all" | "custom";
+  audience_rules?: unknown[];
+}) => data.audience_scope !== "custom" || Number(data.audience_rules?.length) > 0;
+
 /**
  * Base Event Body Fields Definition matching React EventFormValues
  */
@@ -78,19 +131,22 @@ const eventBodyFields = z.object({
   startTime: z.string({ error: () => ({ message: "Start time is required" }) }).min(1, "Start time is required"),
   endDate: z.string({ error: () => ({ message: "End date is required" }) }).min(1, "End date is required"),
   endTime: z.string({ error: () => ({ message: "End time is required" }) }).min(1, "End time is required"),
+  ...audienceFields,
 });
 
 /**
  * Validation schema for Event Creation
  */
 export const eventSchema = z.object({
-  body: eventBodyFields.refine(
-    validDateTimeRange,
-    {
+  body: eventBodyFields
+    .refine(validDateTimeRange, {
       message: "End date and time must be after the start date and time",
       path: ["endDate"],
-    },
-  ),
+    })
+    .refine(validAudienceConfig, {
+      message: "Select at least one audience rule for a custom audience",
+      path: ["audience_rules"],
+    }),
 });
 
 /**
@@ -137,7 +193,10 @@ export const updateEventSchema = z.object({
       message: "End date and time must be after the start date and time",
       path: ["endDate"],
     },
-  ),
+  ).refine(validAudienceConfig, {
+    message: "Select at least one audience rule for a custom audience",
+    path: ["audience_rules"],
+  }),
 });
 
 /**
