@@ -28,7 +28,7 @@ export const verifyEventOwner = async (req: Request, res: Response, next: NextFu
 
         // Role-based Override: Admins can bypass structural ownership locks
         if (req.user?.role === "super-admin") {
-            next();
+            return next();
         }
 
         // Resource Ownership Check

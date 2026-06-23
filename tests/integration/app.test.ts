@@ -133,6 +133,74 @@ test("GET /api/v1/events is rejected without access token", async () => {
   assert.equal(response.body.code, "UNAUTHORIZED");
 });
 
+test("GET /api/v1/academic-sessions is rejected without access token", async () => {
+  const response = await requestApp({ url: "/api/v1/academic-sessions" });
+
+  assert.equal(response.status, 401);
+  assert.equal(response.body.success, false);
+  assert.equal(response.body.code, "UNAUTHORIZED");
+});
+
+test("GET /api/v1/academic-sessions/current is rejected without access token", async () => {
+  const response = await requestApp({ url: "/api/v1/academic-sessions/current" });
+
+  assert.equal(response.status, 401);
+  assert.equal(response.body.success, false);
+  assert.equal(response.body.code, "UNAUTHORIZED");
+});
+
+test("POST /api/v1/academic-sessions is rejected without CSRF token", async () => {
+  const response = await requestApp({
+    method: "POST",
+    url: "/api/v1/academic-sessions",
+    body: {
+      name: "2026/2027 Academic Session",
+      code: "2026/2027",
+      start_date: "2026-09-01",
+      end_date: "2027-07-31",
+      is_active: true,
+    },
+  });
+
+  assert.equal(response.status, 403);
+  assert.equal(response.body.status, "fail");
+  assert.match(response.body.message, /csrf/i);
+});
+
+test("PATCH /api/v1/academic-sessions/:id/current is rejected without CSRF token", async () => {
+  const response = await requestApp({
+    method: "PATCH",
+    url: "/api/v1/academic-sessions/1/current",
+  });
+
+  assert.equal(response.status, 403);
+  assert.equal(response.body.status, "fail");
+  assert.match(response.body.message, /csrf/i);
+});
+
+test("DELETE /api/v1/academic-sessions/:id is rejected without CSRF token", async () => {
+  const response = await requestApp({
+    method: "DELETE",
+    url: "/api/v1/academic-sessions/1",
+  });
+
+  assert.equal(response.status, 403);
+  assert.equal(response.body.status, "fail");
+  assert.match(response.body.message, /csrf/i);
+});
+
+test("PATCH /api/v1/events/:id/status is rejected without CSRF token", async () => {
+  const response = await requestApp({
+    method: "PATCH",
+    url: "/api/v1/events/1/status",
+    body: { status: "approved" },
+  });
+
+  assert.equal(response.status, 403);
+  assert.equal(response.body.status, "fail");
+  assert.match(response.body.message, /csrf/i);
+});
+
 test("GET /api-docs/openapi.json exposes OpenAPI document", async () => {
   const response = await requestApp({ url: "/api-docs/openapi.json" });
 

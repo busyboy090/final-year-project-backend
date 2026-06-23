@@ -104,6 +104,8 @@ const eventBodyFields = z.object({
   // Synchronized field name from selectedVenue to venue_id
   venue_id: positiveIntegerString("Venue selection"),
 
+  session_id: positiveIntegerString("Academic session").optional(),
+
   capacity: positiveIntegerString("Capacity", 5),
 
   category: z.enum(

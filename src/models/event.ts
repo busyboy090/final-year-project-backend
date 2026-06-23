@@ -8,6 +8,7 @@ import type {
 } from 'sequelize';
 import type { User } from './user.ts';
 import type { Venue } from './venue.ts';
+import type { AcademicSession } from './academic_session.ts';
 import type { EventAudienceRule } from './event_audience_rule.ts';
 import type { EventCategory, EventStatus } from '../types/event.d.ts';
 
@@ -19,6 +20,7 @@ export class Event extends Model<InferAttributes<Event>, InferCreationAttributes
   declare category: EventCategory;
   declare thumbnail: string;
   declare organisation_id: number | null;
+  declare session_id: number | null;
   declare venue_id: number;
   declare start_date: Date;
   declare end_date: Date;
@@ -34,6 +36,7 @@ export class Event extends Model<InferAttributes<Event>, InferCreationAttributes
   // Associations (Virtual Fields)
   declare creator?: NonAttribute<User>;
   declare venue?: NonAttribute<Venue>;
+  declare session?: NonAttribute<AcademicSession>;
   declare audienceRules?: NonAttribute<EventAudienceRule[]>;
 
   static associate(models: any) {
@@ -59,6 +62,11 @@ export class Event extends Model<InferAttributes<Event>, InferCreationAttributes
     Event.belongsTo(models.Organisation, {
       foreignKey: 'organisation_id',
       as: 'organisation'
+    });
+
+    Event.belongsTo(models.AcademicSession, {
+      foreignKey: 'session_id',
+      as: 'session'
     });
 
     Event.hasMany(models.EventAudienceRule, {
@@ -102,6 +110,16 @@ export default (sequelize: Sequelize) => {
         references: {
           key: "id",
           model: "organisations"
+        },
+        onDelete: "SET NULL",
+        onUpdate: "CASCADE"
+      },
+      session_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        references: {
+          key: "id",
+          model: "academic_sessions"
         },
         onDelete: "SET NULL",
         onUpdate: "CASCADE"

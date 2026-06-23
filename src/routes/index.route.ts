@@ -13,6 +13,7 @@ import EventRoutes from "./event/event.route.ts";
 import FacultyRoutes from "./faculty.route.ts";
 import FacilityRoutes from "./facility.route.ts";
 import OrganisationRoutes from "./organisation.route.ts";
+import AcademicSessionRoutes from "./academic-session.route.ts";
 
 const router: Router = Router();
 
@@ -54,6 +55,9 @@ router.use("/v1/user", UserRoutes);
 
 // Levels Routes
 router.use("/v1/levels", LevelRoutes);
+
+// Academic Sessions Routes
+router.use("/v1/academic-sessions", AcademicSessionRoutes);
 
 // Departments Routes
 router.use("/v1/departments", DepartmentRoutes);

@@ -35,6 +35,7 @@ export class EventController {
         title: form.title,
         category: form.category,
         description: form.description,
+        session_id: form.session_id ? Number(form.session_id) : undefined,
         venue_id: Number(form.venue_id),
         capacity: Number(form.capacity),
         thumbnail: thumbnailFile,
@@ -60,6 +61,7 @@ export class EventController {
         VENUE_UNAVAILABLE: 409,
         CAPACITY_EXCEEDS_VENUE_LIMIT: 409,
         INVALID_DATE_RANGE: 400,
+        SESSION_NOT_FOUND: 404,
       };
 
       return res
@@ -85,6 +87,7 @@ export class EventController {
         title: form.title ?? form.eventTitle,
         category: form.category,
         description: form.description,
+        session_id: form.session_id ? Number(form.session_id) : undefined,
         venue_id: form.venue_id
           ? Number(form.venue_id)
           : form.selectedVenue
@@ -111,6 +114,7 @@ export class EventController {
         Number(req.params.id),
         backendPayload,
         userId,
+        req.user?.role,
       );
       if (result.ok)
         return res
@@ -122,6 +126,7 @@ export class EventController {
         UNAUTHORIZED: 403,
         VENUE_UNAVAILABLE: 409,
         INVALID_DATE_RANGE: 400,
+        SESSION_NOT_FOUND: 404,
       };
       return res
         .status(errorMap[result.reason!] || 400)
@@ -179,6 +184,7 @@ export class EventController {
       const result = await EventService.deleteEvent(
         Number(req.params.id),
         userId,
+        req.user?.role,
       );
 
       if (result.ok)
@@ -243,6 +249,7 @@ export class EventController {
       const result = await EventService.cancelEvent(
         Number(req.params.id),
         userId,
+        req.user?.role,
       );
 
       if (result.ok)

@@ -18,6 +18,7 @@ type EventResult = {
     | "CAPACITY_EXCEEDS_VENUE_LIMIT"
     | "UNAUTHORIZED"
     | "AUDIENCE_RESTRICTED"
+    | "SESSION_NOT_FOUND"
     | "ORGANISER_PROFILE_NOT_FOUND";
 };
 
@@ -29,6 +30,7 @@ export class EventService {
     try {
       const {
         venue_id,
+        session_id,
         start_date,
         end_date,
         title,
@@ -45,6 +47,13 @@ export class EventService {
       });
 
       const organisation_id = organiserProfile?.organisation_id ?? null;
+      const session = session_id
+        ? await db.AcademicSession.findByPk(Number(session_id))
+        : await db.AcademicSession.findOne({ where: { is_active: true } });
+
+      if (session_id && !session) return { ok: false, reason: "SESSION_NOT_FOUND" };
+
+      const resolvedSessionId = session?.id ?? null;
 
       // Ensure we are comparing real timestamp values safely
       const startTimestamp = new Date(start_date);
@@ -82,6 +91,7 @@ export class EventService {
           thumbnail: thumbnailUrl,
           duration,
           venue_id,
+          session_id: resolvedSessionId,
           start_date: startTimestamp,
           end_date: endTimestamp,
           organisation_id,
@@ -114,16 +124,22 @@ export class EventService {
     eventId: number,
     payload: any,
     userId: number,
+    userRole?: string,
   ): Promise<EventResult> {
     try {
       const event = await db.Event.findByPk(eventId);
       if (!event) return { ok: false, reason: "EVENT_NOT_FOUND" };
 
-      if (event.created_by !== userId) {
+      if (event.created_by !== userId && userRole !== "super-admin") {
         return { ok: false, reason: "UNAUTHORIZED" };
       }
 
       const newVenueId = payload.venue_id || event.venue_id;
+      if (payload.session_id) {
+        const session = await db.AcademicSession.findByPk(Number(payload.session_id));
+        if (!session) return { ok: false, reason: "SESSION_NOT_FOUND" };
+      }
+
       const newStart = payload.start_date
         ? new Date(payload.start_date)
         : new Date(event.start_date);
@@ -227,6 +243,7 @@ export class EventService {
       if (filters.organisation_id)
         where.organisation_id = filters.organisation_id;
       if (filters.venue_id) where.venue_id = filters.venue_id;
+      if (filters.session_id) where.session_id = Number(filters.session_id);
       if (filters.created_by || filters.creator_by) {
         where.created_by = Number(filters.created_by || filters.creator_by);
       }
@@ -335,6 +352,11 @@ export class EventService {
             attributes: ["id", "name"],
           },
           {
+            model: db.AcademicSession,
+            as: "session",
+            attributes: ["id", "name", "code", "is_active"],
+          },
+          {
             model: db.EventAudienceRule,
             as: "audienceRules",
             required: false,
@@ -414,6 +436,11 @@ export class EventService {
             attributes: ["id", "name"],
           },
           {
+            model: db.AcademicSession,
+            as: "session",
+            attributes: ["id", "name", "code", "is_active"],
+          },
+          {
             model: db.EventAudienceRule,
             as: "audienceRules",
             required: false,
@@ -468,13 +495,14 @@ export class EventService {
   static async cancelEvent(
     eventId: number,
     userId: number,
+    userRole?: string,
   ): Promise<EventResult> {
     try {
       const event = await db.Event.findByPk(eventId);
       if (!event) return { ok: false, reason: "EVENT_NOT_FOUND" };
 
       // Only event creator or admin can cancel
-      if (event.created_by !== userId)
+      if (event.created_by !== userId && userRole !== "super-admin")
         return { ok: false, reason: "UNAUTHORIZED" };
 
       await event.update({ status: "cancelled" });
@@ -527,13 +555,14 @@ export class EventService {
   static async deleteEvent(
     eventId: number,
     userId: number,
+    userRole?: string,
   ): Promise<EventResult> {
     try {
       const event = await db.Event.findByPk(eventId);
       if (!event) return { ok: false, reason: "EVENT_NOT_FOUND" };
 
       // Only event creator or admin can delete
-      if (event.created_by !== userId)
+      if (event.created_by !== userId && userRole !== "super-admin")
         return { ok: false, reason: "UNAUTHORIZED" };
 
       // Check if event has enrollments

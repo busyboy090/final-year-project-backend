@@ -9,6 +9,7 @@ import type {
 export class AcademicSession extends Model<InferAttributes<AcademicSession>, InferCreationAttributes<AcademicSession>> {
   declare id: CreationOptional<number>;
   declare name: string; // e.g., "2025/2026 Academic Session"
+  declare code: string;
   declare start_date: Date;
   declare end_date: Date;
   declare is_active: boolean;
@@ -17,10 +18,12 @@ export class AcademicSession extends Model<InferAttributes<AcademicSession>, Inf
   declare created_at: CreationOptional<Date>;
   declare updated_at: CreationOptional<Date>;
 
-  // static associate(models: any) {
-  //   // A session might be linked to events or student registrations
-  //   // Example: Session.hasMany(models.Event, { foreignKey: 'session_id', as: 'events' });
-  // }
+  static associate(models: any) {
+    AcademicSession.hasMany(models.Event, {
+      foreignKey: 'session_id',
+      as: 'events'
+    });
+  }
 }
 
 export default (sequelize: Sequelize) => {
@@ -34,6 +37,11 @@ export default (sequelize: Sequelize) => {
       name: {
         type: DataTypes.STRING,
         allowNull: false,
+      },
+      code: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        unique: true,
       },
       start_date: {
         type: DataTypes.DATE,
