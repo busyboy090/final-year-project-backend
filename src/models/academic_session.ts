@@ -65,6 +65,8 @@ export default (sequelize: Sequelize) => {
       tableName: 'academic_sessions', // Ensure this matches your migration
       underscored: true,
       timestamps: true,
+      createdAt: "created_at",
+      updatedAt: "updated_at",
     }
   );
 

@@ -45,6 +45,8 @@ export default (sequelize: Sequelize) => {
       tableName: "enrollment_checkins",
       underscored: true,
       timestamps: true,
+      createdAt: "created_at",
+      updatedAt: "updated_at",
     },
   );
 

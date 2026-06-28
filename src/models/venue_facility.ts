@@ -52,7 +52,9 @@ export default (sequelize: Sequelize) => {
       modelName: 'VenueFacility',
       tableName: 'venue_facilities',
       underscored: true,
-      timestamps: true
+      timestamps: true,
+      createdAt: "created_at",
+      updatedAt: "updated_at",
     }
   );
 

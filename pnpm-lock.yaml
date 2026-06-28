@@ -141,6 +141,9 @@ importers:
       sequelize-cli:
         specifier: ^6.6.5
         version: 6.6.5
+      sequelize-erd:
+        specifier: ^1.3.1
+        version: 1.3.1
       swagger-jsdoc:
         specifier: ^6.2.8
         version: 6.2.8(openapi-types@12.1.3)
@@ -663,6 +666,9 @@ packages:
   commander@10.0.1:
     resolution: {integrity: sha512-y4Mg2tXshplEbSGzx7amzPwKKOCGuoSRP/CjEdwwk0FOGlUbq6lKuoyDZTNZkmxHdJtp54hdfY/JUrdL7Xfdug==}
     engines: {node: '>=14'}
+
+  commander@2.20.3:
+    resolution: {integrity: sha512-GpVkmM8vF2vQUkj2LvZmD35JxeJOLCwJ9cUkugyk2nuhbv3+mJvpLYYt+0+USMxE+oj+ey/lJEnhZw75x/OMcQ==}
 
   commander@6.2.0:
     resolution: {integrity: sha512-zP4jEKbe8SHzKJYQmq8Y9gYjtO/POJLgIdKgV7B9qNmABVFVc+ctqSX6iXh4mCpJfRBOabiZ2YKPg8ciDw6C+Q==}
@@ -1633,6 +1639,10 @@ packages:
     engines: {node: '>=10.0.0'}
     hasBin: true
 
+  sequelize-erd@1.3.1:
+    resolution: {integrity: sha512-w5/gNkj0WTp80KMvMxrrTp3HyIn1B8F5XmTXP6PXQNoWi1HKazXe9IvlbmGVP2yxx/YTtX+QWatcwkDk8HLK9Q==}
+    hasBin: true
+
   sequelize-pool@7.1.0:
     resolution: {integrity: sha512-G9c0qlIWQSK29pR/5U2JF5dDQeqqHRragoyahj/Nx4KOOQ3CPPfzxnfqFPCSB7x5UgjOgnZ61nSxz+fjDpRlJg==}
     engines: {node: '>= 10.0.0'}
@@ -2578,6 +2588,8 @@ snapshots:
 
   commander@10.0.1: {}
 
+  commander@2.20.3: {}
+
   commander@6.2.0: {}
 
   commander@9.5.0:
@@ -3515,6 +3527,11 @@ snapshots:
       resolve: 1.22.12
       umzug: 2.3.0
       yargs: 16.2.0
+
+  sequelize-erd@1.3.1:
+    dependencies:
+      commander: 2.20.3
+      lodash: 4.18.1
 
   sequelize-pool@7.1.0: {}
 
