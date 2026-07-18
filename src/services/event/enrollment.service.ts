@@ -64,50 +64,21 @@ export class EnrollmentService {
 
       // If there is an existing cancelled enrollment, reactivate and resend QR
       if (existing) {
+        const token = generateRandomToken();
         await existing.update({
           status: "confirmed",
           check_in_time: null,
+          qr_token: token,
+          qr_issued_at: new Date(),
         } as any);
 
-        // Generate persistent QR token and save on enrollment
-        try {
-          const token = generateRandomToken();
-          await existing.update({
-            qr_token: token,
-            qr_issued_at: new Date(),
-          } as any);
-
-          const origin =
-            env.FRONTEND_ORIGIN || env.FRONTEND_URL || env.API_ORIGIN || "";
-          const checkinUrl = `${origin}/v1/events/enrollments/checkin-with-token?token=${encodeURIComponent(
-            token,
-          )}`;
-          const qrDataUrl = await generateQrImageBase64(checkinUrl);
-
-          const user = existing.user ?? (await db.User.findByPk(userId));
-
-          const payload = {
-            to: user?.email ?? "no-reply",
-            firstName: user?.first_name ?? "",
-            eventTitle: String(event.title),
-            eventDate: String(event.start_date),
-            venue: event.venue?.name ?? "",
-            qrDataUrl,
-            checkinUrl,
-            expiry: "persistent",
-          };
-
-          if (qrQueue && typeof qrQueue.add === "function") {
-            await qrQueue.add(
-              { jobType: "registration", payload },
-              { attempts: 3, backoff: 5000 },
-            );
-          } else {
-            void sendEventRegistrationWithQR(payload);
-          }
-        } catch (err) {
-          console.error("QR_EMAIL_SEND_ERROR:", err);
-        }
+        // Fire-and-forget: QR generation + email must never block the response.
+        void EnrollmentService.dispatchRegistrationEmail(
+          existing,
+          event,
+          token,
+          userId,
+        );
 
         return { ok: true, data: existing };
       }
@@ -122,45 +93,72 @@ export class EnrollmentService {
         qr_issued_at: new Date(),
       } as any);
 
-      // Generate QR image and send email to user
-      try {
-        const origin =
-          env.FRONTEND_ORIGIN || env.FRONTEND_URL || env.API_ORIGIN || "";
-        const checkinUrl = `${origin}/v1/events/enrollments/checkin-with-token?token=${encodeURIComponent(
-          token,
-        )}`;
-        const qrDataUrl = await generateQrImageBase64(checkinUrl);
-
-        // Fetch user email/name if available
-        const user = await db.User.findByPk(userId);
-
-        const payload = {
-          to: user?.email ?? "no-reply",
-          firstName: user?.first_name ?? "",
-          eventTitle: String(event.title),
-          eventDate: String(event.start_date),
-          venue: event.venue?.name ?? "",
-          qrDataUrl,
-          checkinUrl,
-          expiry: "persistent",
-        };
-
-        if (qrQueue && typeof qrQueue.add === "function") {
-          await qrQueue.add(
-            { jobType: "registration", payload },
-            { attempts: 3, backoff: 5000 },
-          );
-        } else {
-          void sendEventRegistrationWithQR(payload);
-        }
-      } catch (err) {
-        console.error("QR_EMAIL_SEND_ERROR:", err);
-      }
+      // Fire-and-forget: QR generation + email must never block the response.
+      void EnrollmentService.dispatchRegistrationEmail(
+        enrollment,
+        event,
+        token,
+        userId,
+      );
 
       return { ok: true, data: enrollment };
     } catch (error) {
       console.error("ENROLLMENT_SERVICE_ERROR:", error);
       throw error;
+    }
+  }
+
+  /**
+   * Generates the QR code and sends/queues the registration email.
+   * Runs AFTER the enrollment has already been created/updated and the
+   * HTTP response has been sent — never awaited by the request handler.
+   */
+  private static async dispatchRegistrationEmail(
+    enrollment: any,
+    event: any,
+    token: string,
+    userId: number,
+  ) {
+    try {
+      const origin =
+        env.FRONTEND_ORIGIN || env.FRONTEND_URL || env.API_ORIGIN || "";
+      const checkinUrl = `${origin}/v1/events/enrollments/checkin-with-token?token=${encodeURIComponent(
+        token,
+      )}`;
+      const qrDataUrl = await generateQrImageBase64(checkinUrl);
+
+      const user =
+        enrollment.user ?? (await db.User.findByPk(userId));
+
+      const payload = {
+        to: user?.email ?? "no-reply",
+        firstName: user?.first_name ?? "",
+        eventTitle: String(event.title),
+        eventDate: String(event.start_date),
+        venue: event.venue?.name ?? "",
+        qrDataUrl,
+        checkinUrl,
+        expiry: "persistent",
+      };
+
+      if (qrQueue && typeof qrQueue.add === "function") {
+        // Give the queue add() a hard timeout so a stuck Redis connection
+        // can never hang this background task (it's already off the
+        // request path, but we still don't want it to leak forever).
+        await Promise.race([
+          qrQueue.add(
+            { jobType: "registration", payload },
+            { attempts: 3, backoff: 5000 },
+          ),
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error("QR_QUEUE_TIMEOUT")), 5000),
+          ),
+        ]);
+      } else {
+        await sendEventRegistrationWithQR(payload);
+      }
+    } catch (err) {
+      console.error("QR_EMAIL_SEND_ERROR:", err);
     }
   }
 

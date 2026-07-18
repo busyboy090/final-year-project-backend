@@ -369,7 +369,7 @@ export class EventService {
             ],
           },
         ],
-        order: [["start_date", "ASC"]],
+        order: [["start_date", "DESC"]],
         limit,
         offset,
         distinct: true,
