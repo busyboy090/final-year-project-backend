@@ -14,6 +14,7 @@ type EnrollmentResult = {
   reason?:
     | "EVENT_NOT_FOUND"
     | "EVENT_NOT_APPROVED"
+    | "EVENT_ENDED"
     | "AUDIENCE_RESTRICTED"
     | "ALREADY_ENROLLED"
     | "EVENT_FULL"
@@ -36,6 +37,13 @@ export class EnrollmentService {
       if (!event) return { ok: false, reason: "EVENT_NOT_FOUND" };
       if (event.status !== "approved")
         return { ok: false, reason: "EVENT_NOT_APPROVED" };
+
+      // Belt-and-braces: the events LIST already hides events whose end_date
+      // has passed for staff/student, but this blocks direct/stale-link
+      // join attempts (e.g. a bookmarked eventId) from slipping through.
+      if (new Date(event.end_date) < new Date()) {
+        return { ok: false, reason: "EVENT_ENDED" };
+      }
 
       const audienceCheck = await EventAudienceService.canUserAccessEvent(
         eventId,

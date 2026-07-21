@@ -273,6 +273,11 @@ export class EventService {
         !EventAudienceService.canManageAllEvents(audienceProfile) &&
         ["staff", "student"].includes(audienceProfile.role)
       ) {
+        // Students/staff should never see events that have already ended —
+        // registering for something that's already over makes no sense.
+        // Admins/organisers still see past events for reporting/management.
+        where.end_date = { [Op.gte]: new Date() };
+
         const profileFilters: any[] = [
           { "$audienceRules.role$": audienceProfile.role },
           {
@@ -369,7 +374,7 @@ export class EventService {
             ],
           },
         ],
-        order: [["start_date", "DESC"]],
+        order: [["start_date", "ASC"]],
         limit,
         offset,
         distinct: true,
