@@ -19,8 +19,14 @@ export class EventController {
       }
 
       // 1. Unify discrete date and time strings into proper JavaScript Date instances
-      const start = new Date(`${form.startDate}T${form.startTime}:00`);
-      const end = new Date(`${form.endDate}T${form.endTime}:00`);
+      // NOTE: form.startDate/startTime are plain wall-clock values from the
+      // organiser's browser (Africa/Lagos, UTC+1, no DST). Without an explicit
+      // offset, `new Date("YYYY-MM-DDTHH:mm:00")` is parsed using the Node
+      // process's local timezone (often UTC on servers/containers), which
+      // silently shifts the stored instant and breaks the check-in window
+      // comparison in CheckinService. Pin the offset explicitly instead.
+      const start = new Date(`${form.startDate}T${form.startTime}:00+01:00`);
+      const end = new Date(`${form.endDate}T${form.endTime}:00+01:00`);
 
       // 2. Extract event runtime duration dynamically in minutes
       let durationInMinutes = 0;
@@ -101,13 +107,15 @@ export class EventController {
             : form.audience_rules,
       };
 
+      // Same Africa/Lagos (+01:00) offset fix as EventController.create —
+      // see note there for why this matters for the check-in window.
       if (form.startDate && form.startTime)
         backendPayload.start_date = new Date(
-          `${form.startDate}T${form.startTime}:00`,
+          `${form.startDate}T${form.startTime}:00+01:00`,
         );
       if (form.endDate && form.endTime)
         backendPayload.end_date = new Date(
-          `${form.endDate}T${form.endTime}:00`,
+          `${form.endDate}T${form.endTime}:00+01:00`,
         );
 
       const result = await EventService.updateEvent(
