@@ -34,9 +34,16 @@ export const sendEventRegistrationWithQR = async (payload: Payload) => {
       .replace(/{{eventTitle}}/g, payload.eventTitle)
       .replace(/{{eventDate}}/g, payload.eventDate)
       .replace(/{{venue}}/g, payload.venue)
-      .replace(/{{qrDataUrl}}/g, payload.qrDataUrl)
       .replace(/{{checkinUrl}}/g, payload.checkinUrl)
       .replace(/{{expiry}}/g, payload.expiry);
+
+    // Data URLs in <img src> are blocked/stripped by Gmail, Outlook, and
+    // several other major mail clients. Send the QR as a proper inline
+    // (CID) attachment instead — referenced as `cid:qrcode` in the template
+    // — which renders reliably everywhere.
+    const match = /^data:(image\/\w+);base64,(.+)$/.exec(payload.qrDataUrl);
+    const qrContentType = match?.[1] ?? "image/png";
+    const qrBase64 = match?.[2] ?? payload.qrDataUrl;
 
     // Always send directly. Queueing is handled by callers/workers to avoid double-enqueue loops.
     const { error } = await sendMail({
@@ -44,6 +51,16 @@ export const sendEventRegistrationWithQR = async (payload: Payload) => {
       to: payload.to,
       subject: `Registration: ${payload.eventTitle}`,
       html: htmlContent,
+      props: {
+        attachments: [
+          {
+            filename: "qrcode.png",
+            content: qrBase64,
+            contentType: qrContentType,
+            contentId: "qrcode",
+          },
+        ],
+      },
     });
 
     return { success: true, error };
