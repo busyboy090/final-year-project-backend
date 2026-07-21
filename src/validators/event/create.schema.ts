@@ -2,7 +2,7 @@ import { z } from "zod";
 
 const positiveIntegerString = (field: string, min = 1) =>
   z
-    .string({
+    .union([z.string(), z.number()], {
       error: (issue) => ({
         message:
           issue.input === undefined
@@ -10,7 +10,7 @@ const positiveIntegerString = (field: string, min = 1) =>
             : `${field} must be a valid number`,
       }),
     })
-    .trim()
+    .transform((value) => String(value).trim())
     .refine((value) => /^[1-9]\d*$/.test(value), `${field} must be a positive whole number`)
     .refine((value) => Number(value) >= min, `${field} must be at least ${min}`);
 
