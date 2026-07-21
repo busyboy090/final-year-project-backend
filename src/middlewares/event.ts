@@ -7,8 +7,8 @@ import db from "../models/index.ts";
  */
 export const verifyEventOwner = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        // Look for ID in route parameters first (/:id), then fallback to query string (?id=)
-        const eventId = req.params.id || req.query.id;
+        // Look for ID in route parameters first (/:id or /:eventId), then fallback to query string (?id=)
+        const eventId = req.params.id || req.params.eventId || req.query.id;
 
         if (!eventId) {
             return res.status(400).json({
