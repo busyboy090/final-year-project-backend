@@ -264,6 +264,7 @@ router.get(
  *       200:
  *         description: Check-in result
  */
-router.use("/enrollments/checkin-with-token", CheckinRoute);
+
+router.use("/checkin-with-token", CheckinRoute);
 
 export default router;
