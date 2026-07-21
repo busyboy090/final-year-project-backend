@@ -72,11 +72,16 @@ const createLimiter = (windowMs: number, max: number, defaultMessage: string, ke
 
 /**
  * General API Limiter
- * 100 requests per 15-minute window.
+ * 600 requests per 15-minute window (~40/min average).
+ * A dashboard SPA using react-query fires many parallel and background
+ * GET requests (event lists, venues, sessions, stats, etc.) just from
+ * normal browsing — 100/15min was getting hit by legitimate traffic, not
+ * abuse. 600/15min still meaningfully throttles scripted/bulk abuse while
+ * giving real users headroom for everyday use.
  */
 export const apiLimiter = createLimiter(
   15 * 60 * 1000,
-  100,
+  600,
   "You have exceeded the request limit. Please try again after 15 minutes.",
   "global"
 );
@@ -95,8 +100,12 @@ export const otpLimiter = createLimiter(
 /**
  * Auth Limiter 
  * Returns a configured middleware instance.
+ * Default raised from 5 attempts/10min to 10 attempts/15min: 5/10min was
+ * tripping on ordinary typo-and-retry behavior (wrong password, mistyped
+ * OTP, etc.), especially for users behind shared/NAT'd IPs. 10/15min still
+ * blocks fast brute-forcing while giving real users room to retry.
  */
-export const authLimiter = (routeLabel: string, maxAttempts: number = 5, windowMin: number = 10) => {
+export const authLimiter = (routeLabel: string, maxAttempts: number = 10, windowMin: number = 15) => {
   return createLimiter(
     windowMin * 60 * 1000,
     maxAttempts,
