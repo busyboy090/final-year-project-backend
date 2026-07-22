@@ -2,6 +2,7 @@ import qrQueue from "../queues/qrQueue.ts";
 import { sendEventRegistrationWithQR } from "../services/mail/qrMail.service.ts";
 import { sendEventCancellationEmail } from "../services/mail/cancellation.service.ts";
 import { sendEventReminderEmail } from "../services/mail/reminder.service.ts";
+import { sendEventUpdateEmail } from "../services/mail/eventUpdate.service.ts";
 
 qrQueue.process(async (job: any) => {
   const jobType = job.data?.jobType || job.opts?.jobType || "registration";
@@ -19,6 +20,11 @@ qrQueue.process(async (job: any) => {
 
     if (jobType === "reminder") {
       await sendEventReminderEmail(payload);
+      return Promise.resolve();
+    }
+
+    if (jobType === "update") {
+      await sendEventUpdateEmail(payload);
       return Promise.resolve();
     }
 

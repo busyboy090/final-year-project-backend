@@ -5,3 +5,4 @@ export * from "./setPassword.service.ts";
 export * from "./qrMail.service.ts";
 export * from "./reminder.service.ts";
 export * from "./cancellation.service.ts";
+export * from "./eventUpdate.service.ts";

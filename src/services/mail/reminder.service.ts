@@ -30,7 +30,8 @@ export const sendEventReminderEmail = async (payload: Payload) => {
       .replace(/{{firstName}}/g, payload.firstName ?? "")
       .replace(/{{eventTitle}}/g, payload.eventTitle)
       .replace(/{{eventDate}}/g, payload.eventDate)
-      .replace(/{{venue}}/g, payload.venue ?? "");
+      .replace(/{{venue}}/g, payload.venue ?? "")
+      .replace(/{{year}}/g, String(new Date().getFullYear()));
 
     const { error } = await sendMail({
       from: `noreply@${config.DOMAIN}`,

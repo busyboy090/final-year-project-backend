@@ -13,40 +13,48 @@ type Payload = {
   eventTitle: string;
   eventDate: string;
   venue?: string;
-  reason?: string;
+  /** Human-readable descriptions of what changed, e.g. "Venue changed from X to Y" */
+  changes: string[];
 };
 
-export const sendEventCancellationEmail = async (payload: Payload) => {
+export const sendEventUpdateEmail = async (payload: Payload) => {
   try {
     const templatePath = path.join(
       __dirname,
       "..",
       "..",
       "mailtemplates",
-      "eventCancellation.html",
+      "eventUpdate.html",
     );
     let htmlContent = fs.readFileSync(templatePath, "utf8");
+
+    const changesList = (payload.changes && payload.changes.length
+      ? payload.changes
+      : ["Event details were updated."]
+    )
+      .map((change) => `<li>${change}</li>`)
+      .join("");
 
     htmlContent = htmlContent
       .replace(/{{firstName}}/g, payload.firstName ?? "")
       .replace(/{{eventTitle}}/g, payload.eventTitle)
       .replace(/{{eventDate}}/g, payload.eventDate)
       .replace(/{{venue}}/g, payload.venue ?? "")
-      .replace(/{{reason}}/g, payload.reason ?? "")
+      .replace(/{{changesList}}/g, changesList)
       .replace(/{{year}}/g, String(new Date().getFullYear()));
 
     const { error } = await sendMail({
       from: `noreply@${config.DOMAIN}`,
       to: payload.to,
-      subject: `Event Cancelled: ${payload.eventTitle}`,
+      subject: `Event Updated: ${payload.eventTitle}`,
       html: htmlContent,
     });
 
     return { success: true, error };
   } catch (error) {
-    console.error("CANCELLATION_MAIL_SERVICE_ERROR:", error);
+    console.error("EVENT_UPDATE_MAIL_SERVICE_ERROR:", error);
     return { success: false, error };
   }
 };
 
-export default sendEventCancellationEmail;
+export default sendEventUpdateEmail;

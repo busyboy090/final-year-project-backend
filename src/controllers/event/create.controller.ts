@@ -88,6 +88,10 @@ export class EventController {
     try {
       const userId = Number(req.user?.userId);
       const form = req.body;
+      const files = req.files as
+        | { [fieldname: string]: Express.Multer.File[] }
+        | undefined;
+      const thumbnailFile = files?.thumbnail?.[0];
 
       const backendPayload: any = {
         title: form.title ?? form.eventTitle,
@@ -106,6 +110,10 @@ export class EventController {
             ? JSON.parse(form.audience_rules || "[]")
             : form.audience_rules,
       };
+
+      if (thumbnailFile) {
+        backendPayload.thumbnail = thumbnailFile;
+      }
 
       // Same Africa/Lagos (+01:00) offset fix as EventController.create —
       // see note there for why this matters for the check-in window.

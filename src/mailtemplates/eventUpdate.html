@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { margin: 0; padding: 0; width: 100% !important; background-color: #f4f7fa; }
+        .container { max-width: 600px; margin: 0 auto; padding: 40px 20px; background-color: #ffffff; border-radius: 8px; margin-top: 20px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+        .alert-banner {
+            background-color: #fdf8ee;
+            border-left: 4px solid #c9a227; /* ADUN Gold */
+            padding: 20px;
+            margin: 20px 0;
+            text-align: left;
+        }
+        .changes-list { margin: 0; padding-left: 18px; color: #1e293b; font-size: 14px; }
+        .changes-list li { margin-bottom: 8px; }
+        .changes-list strong { color: #7b5800; }
+        .details-box {
+            background-color: #f8fafc;
+            padding: 15px;
+            border-radius: 6px;
+            font-size: 14px;
+            color: #334155;
+            margin-top: 20px;
+            border: 1px solid #e2e8f0;
+        }
+    </style>
+</head>
+<body style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #f4f7fa;">
+    <div class="container">
+        <h2 style="color: #001e40; margin-bottom: 10px; text-align: center;">Event Update Notice</h2>
+        <p style="color: #64748b; font-size: 14px; text-align: center; margin-bottom: 30px;">{{eventTitle}}</p>
+
+        <p style="color: #475569; font-size: 16px;">Hello {{firstName}},</p>
+
+        <p style="color: #475569; font-size: 16px; line-height: 1.6;">
+            The organiser has made changes to <strong>{{eventTitle}}</strong>, an event you're registered for. Please review the update(s) below.
+        </p>
+
+        <div class="alert-banner">
+            <ul class="changes-list">
+                {{changesList}}
+            </ul>
+        </div>
+
+        <div class="details-box">
+            <strong>Current Event Details</strong><br>
+            Date &amp; Time: {{eventDate}}<br>
+            Venue: {{venue}}
+        </div>
+
+        <p style="color: #475569; font-size: 15px; margin-top: 20px;">
+            If this new schedule no longer works for you, you can cancel your registration from your dashboard.
+        </p>
+
+        <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 30px 0;">
+
+        <p style="color: #94a3b8; font-size: 12px; text-align: center;">
+            You're receiving this because you're registered for an event at Admiralty University of Nigeria.
+        </p>
+        <p style="color: #cbd5e1; font-size: 11px; text-align: center;">
+            &copy; {{year}} ADUN-EMS. All rights reserved.
+        </p>
+    </div>
+</body>
+</html>

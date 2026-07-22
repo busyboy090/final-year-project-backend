@@ -299,6 +299,19 @@ router.post(
  *               value:
  *                 audience_scope: all
  *                 audience_rules: []
+ *         multipart/form-data:
+ *           schema:
+ *             allOf:
+ *               - $ref: '#/components/schemas/EventUpdateRequest'
+ *               - type: object
+ *                 properties:
+ *                   thumbnail:
+ *                     type: string
+ *                     format: binary
+ *                     description: Replace the event's thumbnail image.
+ *           encoding:
+ *             audience_rules:
+ *               contentType: application/json
  *     responses:
  *       200:
  *         description: Event updated
@@ -333,6 +346,7 @@ router.patch(
   authenticate,
   hasRole(["event-organiser", "super-admin"]),
   EventMiddleware.verifyEventOwner,
+  upload.fields([{ name: "thumbnail", maxCount: 1 }]),
   validate(EventSchema.updateEventSchema),
   EventController.update,
 );

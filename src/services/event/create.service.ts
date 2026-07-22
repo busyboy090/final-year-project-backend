@@ -3,8 +3,18 @@ import { VenueService } from "../venue.service.ts";
 import { CloudinaryHelper } from "../../helpers/cloudinary.helper.ts";
 import { Op, Sequelize } from "sequelize";
 import { sendEventCancellationEmail } from "../mail/cancellation.service.ts";
+import { sendEventUpdateEmail } from "../mail/eventUpdate.service.ts";
 import qrQueue from "../../queues/qrQueue.ts";
 import { EventAudienceService } from "./audience.service.ts";
+
+// Consistent human-readable date/time formatting for notification emails,
+// pinned to Africa/Lagos so times match what organisers entered.
+const formatEventDateTime = (date: Date | string): string =>
+  new Date(date).toLocaleString("en-GB", {
+    timeZone: "Africa/Lagos",
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
 
 // Extended EventResult type to safely handle statistical metrics payloads
 type EventResult = {
@@ -160,6 +170,12 @@ export class EventService {
         if (!isAvailable) return { ok: false, reason: "VENUE_UNAVAILABLE" };
       }
 
+      // Snapshot the fields attendees rely on before they're overwritten, so
+      // we can tell after the update whether anything sensitive actually changed.
+      const previousVenueId = event.venue_id;
+      const previousStart = new Date(event.start_date).getTime();
+      const previousEnd = new Date(event.end_date).getTime();
+
       const {
         audience_rules,
         audience_scope,
@@ -192,10 +208,80 @@ export class EventService {
         return nextEvent;
       });
 
+      // Enrolled users depend on venue and schedule to actually show up, so
+      // notify them by email whenever either changes. Thumbnail, title,
+      // description, capacity, etc. don't warrant an email.
+      const venueChanged =
+        Number(updatedEvent.venue_id) !== Number(previousVenueId);
+      const timeChanged =
+        new Date(updatedEvent.start_date).getTime() !== previousStart ||
+        new Date(updatedEvent.end_date).getTime() !== previousEnd;
+
+      if (venueChanged || timeChanged) {
+        void EventService.notifyEnrolledUsersOfUpdate(updatedEvent, {
+          venueChanged,
+          timeChanged,
+        });
+      }
+
       return { ok: true, data: updatedEvent };
     } catch (error) {
       console.error("UPDATE_EVENT_SERVICE_ERROR:", error);
       throw error;
+    }
+  }
+
+  /**
+   * Emails actively-enrolled users (skips cancelled enrollments) when an
+   * event's venue or schedule changes. Failures here are logged but never
+   * bubble up — a notification problem shouldn't fail the update request.
+   */
+  static async notifyEnrolledUsersOfUpdate(
+    event: any,
+    flags: { venueChanged: boolean; timeChanged: boolean },
+  ): Promise<void> {
+    try {
+      const venue = await db.Venue.findByPk(event.venue_id);
+      const eventDate = formatEventDateTime(event.start_date);
+
+      const changes: string[] = [];
+      if (flags.timeChanged) {
+        changes.push(`<strong>Date &amp; time</strong> changed to ${eventDate}`);
+      }
+      if (flags.venueChanged) {
+        changes.push(
+          `<strong>Venue</strong> changed to ${venue?.name ?? "a new venue"}`,
+        );
+      }
+
+      const enrollments = await db.EventEnrollment.findAll({
+        where: { event_id: event.id, status: { [Op.ne]: "cancelled" } },
+      });
+
+      for (const enrollment of enrollments) {
+        const user = await db.User.findByPk(enrollment.user_id);
+        if (!user?.email) continue;
+
+        const payload = {
+          to: user.email,
+          firstName: user.first_name ?? "",
+          eventTitle: String(event.title),
+          eventDate,
+          venue: venue?.name ?? "",
+          changes,
+        };
+
+        if (qrQueue && typeof qrQueue.add === "function") {
+          await qrQueue.add(
+            { jobType: "update", payload },
+            { attempts: 3, backoff: 5000 },
+          );
+        } else {
+          void sendEventUpdateEmail(payload);
+        }
+      }
+    } catch (notifyErr) {
+      console.error("UPDATE_EVENT_NOTIFY_ERROR:", notifyErr);
     }
   }
 
