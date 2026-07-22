@@ -80,34 +80,34 @@ export const loginUser = async (payload: {
     }
 
     // 4. MFA check
-    // if (user.two_factor_enabled) {
-    //   const { otp, cooldownRemaining } = await OTPService.generateOTP(
-    //     user.email,
-    //     "mfa",
-    //   );
+    if (user.two_factor_enabled) {
+      const { otp, cooldownRemaining } = await OTPService.generateOTP(
+        user.email,
+        "mfa",
+      );
 
-    //   const tempToken = generateTempToken(
-    //     { userId: String(user.id), type: "mfa" },
-    //     "10m",
-    //   );
+      const tempToken = generateTempToken(
+        { userId: String(user.id), type: "mfa" },
+        "10m",
+      );
 
-    //   if (cooldownRemaining && !otp) {
-    //     return { ok: false, reason: "MFA_REQUIRED", cooldownRemaining, tempToken };
-    //   }
+      if (cooldownRemaining && !otp) {
+        return { ok: false, reason: "MFA_REQUIRED", cooldownRemaining, tempToken };
+      }
 
-    //   const { error } = await mailService.sendMFAOTP({
-    //     to:   user.email,
-    //     name: user.first_name,
-    //     otp:  otp!,
-    //   });
+      const { error } = await mailService.sendMfaOTP({
+        to:   user.email,
+        name: user.first_name,
+        otp:  otp!,
+      });
 
-    //   if (error) {
-    //     await OTPService.deleteOTP(user.email, "mfa");
-    //     return { ok: false, reason: "MFA_OTP_EMAIL_SEND_FAILED" };
-    //   }
+      if (error) {
+        await OTPService.deleteOTP(user.email, "mfa");
+        return { ok: false, reason: "MFA_OTP_EMAIL_SEND_FAILED" };
+      }
 
-    //   return { ok: false, reason: "MFA_REQUIRED", cooldownRemaining, tempToken };
-    // }
+      return { ok: false, reason: "MFA_REQUIRED", cooldownRemaining, tempToken };
+    }
 
     // 5. Check profile completion
     const profileExists = await ProfileService.checkUserProfiles(user.id, user.role);
