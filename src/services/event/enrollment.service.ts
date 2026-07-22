@@ -293,19 +293,48 @@ export class EnrollmentService {
 
       const enrollments = await db.EventEnrollment.findAll({
         where: { event_id: eventId },
-        include: [{ model: db.User, as: "user" }],
+        include: [
+          {
+            model: db.User,
+            as: "user",
+            include: [
+              {
+                model: db.StudentProfile,
+                as: "studentProfile",
+                include: [
+                  { model: db.Department, as: "department", attributes: ["name"] },
+                  { model: db.Level, as: "level", attributes: ["name", "code"] },
+                ],
+              },
+              {
+                model: db.StaffProfile,
+                as: "staffProfile",
+                include: [
+                  { model: db.Faculty, as: "faculty", attributes: ["name"] },
+                  { model: db.Department, as: "department", attributes: ["name"] },
+                ],
+              },
+            ],
+          },
+        ],
         order: [["created_at", "DESC"]],
       });
 
       const headers = [
-        "ID",
-        "First Name",
-        "Last Name",
+        "S/N",
+        "Full Name",
+        "Gender",
         "Email",
+        "Phone",
         "Role",
-        "Status",
-        "Enrolled At",
-        "Check-in Time"
+        "Matric/Staff No",
+        "Faculty",
+        "Department",
+        "Level / Staff Type",
+        "Enrollment Status",
+        "Registered At",
+        "Checked In",
+        "Check-in Time",
       ];
 
       const escapeCSV = (val: any) => {
@@ -317,17 +346,39 @@ export class EnrollmentService {
         return str;
       };
 
-      const rows = enrollments.map((e: any) => {
+      const titleCase = (val?: string | null) =>
+        val ? val.charAt(0).toUpperCase() + val.slice(1).replace(/-/g, " ") : "";
+
+      const rows = enrollments.map((e: any, index: number) => {
         const u = e.user;
+        const student = u?.studentProfile;
+        const staff = u?.staffProfile;
+
+        const fullName = [u?.first_name, u?.last_name].filter(Boolean).join(" ");
+        const idNumber = student?.matric_no || staff?.staff_id || "";
+        const faculty = staff?.faculty?.name || "";
+        const department = student?.department?.name || staff?.department?.name || "";
+        const levelOrStaffType = student?.level
+          ? `${student.level.name || student.level.code || ""} Level`
+          : staff?.staff_type
+            ? titleCase(staff.staff_type)
+            : "";
+
         return [
-          e.id,
-          u?.first_name || "",
-          u?.last_name || "",
+          index + 1,
+          fullName,
+          titleCase(u?.gender),
           u?.email || "",
-          u?.role || "",
-          e.status,
+          u?.phone || "",
+          titleCase(u?.role),
+          idNumber,
+          faculty,
+          department,
+          levelOrStaffType,
+          titleCase(e.status),
           e.created_at ? new Date(e.created_at).toISOString() : "",
-          e.check_in_time ? new Date(e.check_in_time).toISOString() : ""
+          e.check_in_time ? "Yes" : "No",
+          e.check_in_time ? new Date(e.check_in_time).toISOString() : "",
         ].map(escapeCSV).join(",");
       });
 
