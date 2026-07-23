@@ -1,6 +1,8 @@
 import { Router } from "express";
 import type { Router as RouterType } from "express";
 import { checkinWithToken } from "../../controllers/event/checkin.controller.ts";
+import { hasRole } from "../../middlewares/role.ts";
+import { authenticate } from "../../middlewares/auth.ts";
 
 const router: RouterType = Router();
 
@@ -10,7 +12,7 @@ const router: RouterType = Router();
  *   post:
  *     tags:
  *       - Enrollments
- *     summary: Check-in using QR token (public)
+ *     summary: Check-in using QR token
  *     description: Public endpoint used by QR scanners to check in an enrollment from a persistent QR token.
  *     requestBody:
  *       required: true
@@ -48,6 +50,6 @@ const router: RouterType = Router();
  *         $ref: '#/components/schemas/ErrorMessage'
  */
 // POST /api/v1/events/enrollments/checkin-with-token
-router.post("/", checkinWithToken);
+router.post("/", authenticate, hasRole(["event-organiser", "super-admin"]),checkinWithToken);
 
 export default router;
